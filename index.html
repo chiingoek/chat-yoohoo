@@ -14,7 +14,6 @@
             --surface: #111;
             --text: #e0e0e0;
         }
-
         * { box-sizing: border-box; }
         body {
             margin: 0; font-family: 'Montserrat', sans-serif;
@@ -22,58 +21,39 @@
             height: 100vh; overflow: hidden;
             background-image: radial-gradient(circle at center, #1a0033 0%, #050505 100%);
         }
-
-        /* --- UI Overlays --- */
         #authOverlay, #kickOverlay, #dmOverlay {
             position: fixed; inset: 0; background: rgba(0, 0, 0, 0.95);
             backdrop-filter: blur(15px); z-index: 1000;
             display: flex; justify-content: center; align-items: center;
         }
-
         .card {
             background: var(--surface); padding: 30px; border-radius: 20px;
             border: 1px solid var(--primary); box-shadow: 0 0 40px var(--primary-glow);
             width: 400px; text-align: center;
         }
-
         h1, h2 { letter-spacing: 5px; text-transform: uppercase; color: var(--primary); text-shadow: 0 0 10px var(--primary-glow); }
-
         input {
             width: 100%; padding: 12px; margin: 10px 0; border-radius: 10px;
             border: 1px solid #333; background: #0a0a0a; color: #fff; transition: 0.3s;
         }
         input:focus { outline: none; border-color: var(--primary); }
-
         .btn-main {
             background: var(--primary); color: white; width: 100%; padding: 12px;
             margin-top: 10px; border: none; border-radius: 10px; font-weight: bold; cursor: pointer;
         }
-
-        /* --- Layout --- */
         header { height: 60px; background: rgba(17, 17, 17, 0.9); display: flex; justify-content: space-between; align-items: center; padding: 0 20px; border-bottom: 2px solid var(--primary); }
         main { display: flex; height: calc(100vh - 60px); }
-        
-        #sidebar { width: 280px; background: rgba(10, 10, 10, 0.9); border-right: 1px solid #222; padding: 15px; overflow-y: auto; }
+        #sidebar { width: 300px; background: rgba(10, 10, 10, 0.9); border-right: 1px solid #222; padding: 15px; overflow-y: auto; }
         #chatArea { flex: 1; display: flex; flex-direction: column; }
         #chatContainer, #dmContainer { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
-        
-        /* --- Messages --- */
         .message { padding: 10px 15px; border-radius: 12px; max-width: 80%; font-size: 0.9em; line-height: 1.4; }
         .msg-Member { background: #222; align-self: flex-start; border-left: 3px solid #444; }
         .msg-Moderator { background: #1a252b; align-self: flex-start; border-left: 3px solid var(--mod); }
         .msg-Admin { background: #251a2b; align-self: flex-start; border-left: 3px solid var(--primary); }
         .msg-me { align-self: flex-end; background: var(--primary); color: white; }
-
         .user-row { background: #1a1a1a; padding: 12px; border-radius: 10px; margin-bottom: 10px; border: 1px solid #333; cursor: pointer; transition: 0.3s; }
-        .user-row:hover { background: #222; }
         .mod-btn { font-size: 0.6em; padding: 4px 8px; margin-right: 4px; border-radius: 4px; cursor: pointer; border: none; font-weight: bold; color: white; }
-
-        /* Notification Glow */
-        .notif-glow {
-            border-color: var(--primary) !important;
-            box-shadow: 0 0 15px var(--primary-glow);
-            animation: pulse 1.5s infinite;
-        }
+        .notif-glow { border-color: var(--primary) !important; box-shadow: 0 0 15px var(--primary-glow); animation: pulse 1.5s infinite; }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
     </style>
 </head>
@@ -154,7 +134,6 @@ window.onload = function() {
     let activeDMTarget = null;
     let dmListener = null;
 
-    // --- AUTH ---
     document.getElementById('toggleBtn').onclick = () => {
         isRegisterMode = !isRegisterMode;
         document.getElementById('authTitle').innerText = isRegisterMode ? "Register" : "Initiation";
@@ -193,7 +172,6 @@ window.onload = function() {
     function launchCircle() {
         document.getElementById('headerInfo').innerText = `${currentUser.name} // ${currentUser.role}`;
         
-        // Public Chat Sync
         rdb.ref('messages').limitToLast(50).on('value', (snap) => {
             const container = document.getElementById('chatContainer');
             container.innerHTML = '';
@@ -207,7 +185,6 @@ window.onload = function() {
             container.scrollTop = container.scrollHeight;
         });
 
-        // Sidebar & DM Notifications
         rdb.ref('users').on('value', (snap) => {
             const list = document.getElementById('userList');
             list.innerHTML = '';
@@ -219,13 +196,8 @@ window.onload = function() {
                 div.className = 'user-row';
                 div.id = 'user-' + name;
                 div.innerHTML = `<div style="font-size:0.85em;">${name} <small style="opacity:0.5;">(${u.role})</small></div>`;
-                
-                div.onclick = () => {
-                    div.classList.remove('notif-glow');
-                    openDM(name);
-                };
+                div.onclick = () => { div.classList.remove('notif-glow'); openDM(name); };
 
-                // Admin/Mod Controls
                 if(currentUser.role !== 'Member') {
                     const tools = document.createElement('div');
                     tools.style.marginTop = "8px";
@@ -235,9 +207,7 @@ window.onload = function() {
                         btnHTML += `<button class="mod-btn" style="background:#8b0000" onclick="event.stopPropagation(); mod('ban','${name}')">Ban</button>
                                     <button class="mod-btn" style="background:var(--mod)" onclick="event.stopPropagation(); mod('promote','${name}')">Mod</button>`;
                     }
-                    if(u.rejoinPending) {
-                        btnHTML += `<button class="mod-btn" style="background:green; width:100%; margin-top:5px;" onclick="event.stopPropagation(); mod('approve','${name}')">Approve Rejoin</button>`;
-                    }
+                    if(u.rejoinPending) btnHTML += `<button class="mod-btn" style="background:green; width:100%; margin-top:5px;" onclick="event.stopPropagation(); mod('approve','${name}')">Approve</button>`;
                     tools.innerHTML = btnHTML;
                     div.appendChild(tools);
                 }
@@ -245,7 +215,6 @@ window.onload = function() {
             });
         });
 
-        // Global DM Listener for Glow
         rdb.ref('dms').on('child_changed', (snap) => {
             const roomID = snap.key;
             if (roomID.includes(currentUser.name)) {
@@ -259,21 +228,17 @@ window.onload = function() {
             }
         });
 
-        // Forced Logout Status
         rdb.ref('users/' + currentUser.name + '/status').on('value', (s) => {
             if(s.val() === 'Kicked' || s.val() === 'Banned') location.reload();
         });
     }
 
-    // --- DM LOGIC ---
     window.openDM = function(target) {
         activeDMTarget = target;
         document.getElementById('dmTargetName').innerText = `ENCRYPTED LINK: ${target}`;
         document.getElementById('dmOverlay').style.display = 'flex';
         const roomID = [currentUser.name, target].sort().join('_');
-        
         if(dmListener) rdb.ref('dms/' + roomID).off();
-        
         dmListener = rdb.ref('dms/' + roomID).on('value', (snap) => {
             const container = document.getElementById('dmContainer');
             container.innerHTML = '';
@@ -289,11 +254,7 @@ window.onload = function() {
         });
     }
 
-    window.closeDM = () => {
-        activeDMTarget = null;
-        document.getElementById('dmOverlay').style.display = 'none';
-    }
-
+    window.closeDM = () => { activeDMTarget = null; document.getElementById('dmOverlay').style.display = 'none'; }
     window.sendDM = function() {
         const text = document.getElementById('dmInput').value.trim();
         if(!text || !activeDMTarget) return;
@@ -302,12 +263,11 @@ window.onload = function() {
         document.getElementById('dmInput').value = '';
     }
 
-    // --- GENERAL ---
     document.getElementById('sendMsgBtn').onclick = () => {
         const text = document.getElementById('messageInput').value.trim();
         if(!text) return;
         rdb.ref('users/' + currentUser.name).once('value', (snap) => {
-            if(snap.val().muteUntil > Date.now()) return alert("YOUR VOICE IS CURRENTLY SILENCED.");
+            if(snap.val().muteUntil > Date.now()) return alert("SILENCED.");
             rdb.ref('messages').push({ sender: currentUser.name, role: currentUser.role, text: text });
             document.getElementById('messageInput').value = '';
         });
@@ -316,7 +276,7 @@ window.onload = function() {
     window.mod = (type, target) => {
         const ref = rdb.ref('users/' + target);
         if(type === 'mute') ref.update({ muteUntil: Date.now() + 600000 });
-        if(type === 'kick') ref.update({ status: 'Kicked' });
+        if(type === 'kick') ref.update({ status: 'Kicked', rejoinPending: false });
         if(type === 'ban') ref.update({ status: 'Banned' });
         if(type === 'promote') ref.update({ role: 'Moderator' });
         if(type === 'approve') ref.update({ status: 'Active', rejoinPending: false });
@@ -327,11 +287,10 @@ window.onload = function() {
 };
 
 function requestRejoin() {
-    // Re-fetch username for the kicked session
     const u = document.getElementById('userIn').value.trim();
     firebase.database().ref('users/' + u).update({ rejoinPending: true });
     document.getElementById('rejoinBtn').disabled = true;
-    document.getElementById('requestStatus').innerText = "Signal sent. Awaiting Grandmaster approval.";
+    document.getElementById('requestStatus').innerText = "Signal sent.";
 }
 </script>
 </body>
