@@ -26,11 +26,11 @@
             background-image: radial-gradient(circle at center, #1a0033 0%, #050505 100%);
         }
 
-        /* --- Auth & Exile Overlays --- */
+        /* --- UI Overlays --- */
         #authOverlay, #kickOverlay {
             position: fixed;
             inset: 0;
-            background: rgba(0, 0, 0, 0.9);
+            background: rgba(0, 0, 0, 0.95);
             backdrop-filter: blur(15px);
             z-index: 1000;
             display: flex;
@@ -78,7 +78,6 @@
 
         .btn-main:hover { background: #9b30ff; transform: scale(1.02); }
 
-        /* --- Main Layout --- */
         header {
             height: 70px;
             background: rgba(17, 17, 17, 0.9);
@@ -101,26 +100,16 @@
         }
 
         #chatArea { flex: 1; display: flex; flex-direction: column; }
-
-        /* --- Messages --- */
         #chatContainer { flex: 1; padding: 25px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
         
-        .message {
-            padding: 12px 18px;
-            border-radius: 15px;
-            max-width: 70%;
-            font-size: 0.95em;
-            line-height: 1.4;
-        }
-
+        .message { padding: 12px 18px; border-radius: 15px; max-width: 70%; font-size: 0.95em; line-height: 1.4; }
         .msg-Member { background: #222; align-self: flex-start; border-left: 3px solid #444; }
         .msg-Moderator { background: #1a252b; align-self: flex-start; border-left: 3px solid var(--mod); }
         .msg-Admin { background: #251a2b; align-self: flex-start; border-left: 3px solid var(--primary); }
-        .msg-me { align-self: flex-end; background: var(--primary); border: none; color: white; }
+        .msg-me { align-self: flex-end; background: var(--primary); color: white; }
 
         .msg-meta { font-size: 0.7em; opacity: 0.5; margin-bottom: 5px; font-weight: bold; text-transform: uppercase; }
 
-        /* --- Moderation Tools --- */
         .user-row { background: #1a1a1a; padding: 12px; border-radius: 10px; margin-bottom: 10px; border: 1px solid #333; }
         .mod-btn { font-size: 0.65em; padding: 4px 8px; margin-right: 4px; border-radius: 4px; cursor: pointer; border: none; font-weight: bold; }
         .b-kick { background: #ff4500; color: white; }
@@ -137,14 +126,11 @@
     <div class="auth-card">
         <h1 id="authTitle">Initiation</h1>
         <p id="authDesc" style="font-size: 0.7em; color: #666; margin-bottom: 20px;">ENTER YOUR CREDENTIALS</p>
-        
         <input type="text" id="userIn" placeholder="Identity (Username)">
         <input type="password" id="passIn" placeholder="Security Cipher (Password)">
-        
-        <button id="mainAuthBtn" class="btn-main" onclick="processAuth()">Access The Circle</button>
-        
+        <button id="mainAuthBtn" class="btn-main">Access The Circle</button>
         <div style="margin-top: 20px;">
-            <button id="toggleBtn" style="background:none; border:none; color:var(--primary); cursor:pointer; text-decoration:underline; font-size: 0.8em;" onclick="toggleAuthMode()">
+            <button id="toggleBtn" style="background:none; border:none; color:var(--primary); cursor:pointer; text-decoration:underline; font-size: 0.8em;">
                 New Initiate? Register here
             </button>
         </div>
@@ -171,12 +157,11 @@
         <h3 style="font-size: 0.8em; color: var(--primary); margin-bottom: 20px;">MODERATION SECTOR</h3>
         <div id="userList"></div>
     </div>
-
     <div id="chatArea">
         <div id="chatContainer"></div>
         <div id="inputArea">
             <input type="text" id="messageInput" placeholder="Transmit wisdom..." autocomplete="off">
-            <button class="btn-main" style="width:120px; margin-top:0;" onclick="sendMessage()">Send</button>
+            <button class="btn-main" style="width:120px; margin-top:0;" id="sendMsgBtn">Send</button>
         </div>
     </div>
 </main>
@@ -185,6 +170,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
 <script>
+window.onload = function() {
     const firebaseConfig = {
         apiKey: "AIzaSyDtGHGk144-eQIllFpwABXk8Ss4FwCgQME",
         authDomain: "circle-38d10.firebaseapp.com",
@@ -195,40 +181,50 @@
         appId: "1:122771546745:web:c766e8da22974e877aeaa8"
     };
 
-    firebase.initializeApp(firebaseConfig);
+    try {
+        firebase.initializeApp(firebaseConfig);
+        console.log("Firebase Initialized");
+    } catch (e) {
+        alert("Firebase Config Error: " + e.message);
+    }
+
     const rdb = firebase.database();
     let currentUser = null;
     let isRegisterMode = false;
 
+    // UI Elements
+    const authTitle = document.getElementById('authTitle');
+    const authDesc = document.getElementById('authDesc');
+    const mainAuthBtn = document.getElementById('mainAuthBtn');
+    const toggleBtn = document.getElementById('toggleBtn');
+    const messageInput = document.getElementById('messageInput');
+    const sendMsgBtn = document.getElementById('sendMsgBtn');
+
     // --- AUTH UI TOGGLE ---
-    function toggleAuthMode() {
+    toggleBtn.onclick = function() {
         isRegisterMode = !isRegisterMode;
-        document.getElementById('authTitle').innerText = isRegisterMode ? "Registration" : "Initiation";
-        document.getElementById('authDesc').innerText = isRegisterMode ? "CREATE A NEW IDENTITY" : "ENTER YOUR CREDENTIALS";
-        document.getElementById('mainAuthBtn').innerText = isRegisterMode ? "REGISTER IDENTITY" : "ACCESS THE CIRCLE";
-        document.getElementById('toggleBtn').innerText = isRegisterMode ? "Already an initiate? Login" : "New Initiate? Register here";
-    }
+        authTitle.innerText = isRegisterMode ? "Registration" : "Initiation";
+        authDesc.innerText = isRegisterMode ? "CREATE A NEW IDENTITY" : "ENTER YOUR CREDENTIALS";
+        mainAuthBtn.innerText = isRegisterMode ? "REGISTER IDENTITY" : "ACCESS THE CIRCLE";
+        toggleBtn.innerText = isRegisterMode ? "Already an initiate? Login" : "New Initiate? Register here";
+    };
 
-    function processAuth() {
-        const type = isRegisterMode ? 'signup' : 'login';
-        handleAuth(type);
-    }
-
-    // --- CORE AUTH LOGIC ---
-    function handleAuth(type) {
+    mainAuthBtn.onclick = function() {
         const u = document.getElementById('userIn').value.trim();
         const p = document.getElementById('passIn').value;
         if(!u || !p) return alert("Fields required.");
 
-        rdb.ref('users/' + u).once('value', (snap) => {
+        const type = isRegisterMode ? 'signup' : 'login';
+
+        rdb.ref('users/' + u).once('value').then((snap) => {
             const data = snap.val();
             if(type === 'signup') {
                 if(data) return alert("Identity already exists.");
                 rdb.ref('users/' + u).set({
                     pass: p, role: "Member", status: "Active", muteUntil: 0, rejoinPending: false
                 }).then(() => {
-                    alert("Registration complete. You may now login.");
-                    toggleAuthMode();
+                    alert("Registration complete. Now login.");
+                    isRegisterMode = true; toggleBtn.click(); // Reset to login
                 });
             } else {
                 if(data && data.pass === p) {
@@ -243,8 +239,8 @@
                     launchCircle();
                 } else { alert("Cipher Incorrect."); }
             }
-        });
-    }
+        }).catch(err => alert("Database Error: " + err.message));
+    };
 
     function launchCircle() {
         if(currentUser.role === 'Admin' || currentUser.role === 'Moderator') {
@@ -271,7 +267,6 @@
         });
     }
 
-    // --- MODERATION ---
     function renderUserList(snap) {
         const list = document.getElementById('userList');
         list.innerHTML = '';
@@ -279,64 +274,47 @@
             const name = child.key;
             const u = child.val();
             if(name === currentUser.name) return;
-
             const div = document.createElement('div');
             div.className = 'user-row';
-            
-            let tools = `<button class="mod-btn b-mute" onclick="modAction('mute','${name}')">Mute</button>
-                         <button class="mod-btn b-kick" onclick="modAction('kick','${name}')">Kick</button>`;
-            
+            let tools = `<button class="mod-btn b-mute" onclick="window.modAction('mute','${name}')">Mute</button>
+                         <button class="mod-btn b-kick" onclick="window.modAction('kick','${name}')">Kick</button>`;
             if(currentUser.role === 'Admin') {
-                tools += `<button class="mod-btn b-ban" onclick="modAction('ban','${name}')">Ban</button>
-                          <button class="mod-btn b-promo" onclick="modAction('promote','${name}')">Mod</button>`;
+                tools += `<button class="mod-btn b-ban" onclick="window.modAction('ban','${name}')">Ban</button>
+                          <button class="mod-btn b-promo" onclick="window.modAction('promote','${name}')">Mod</button>`;
             }
-
-            if(u.rejoinPending) {
-                tools += `<button class="mod-btn" style="background:green; color:white; width:100%; margin-top:5px;" onclick="modAction('approve','${name}')">Approve</button>`;
-            }
-
-            div.innerHTML = `
-                <div style="font-size:0.8em; margin-bottom:8px;">${name} <span style="color:#666;">(${u.role})</span></div>
-                <div style="font-size:0.7em; color:${u.status === 'Active' ? 'green' : 'red'}; margin-bottom:8px;">${u.status}</div>
-                <div>${tools}</div>
-            `;
+            if(u.rejoinPending) tools += `<button class="mod-btn" style="background:green; color:white; width:100%; margin-top:5px;" onclick="window.modAction('approve','${name}')">Approve</button>`;
+            div.innerHTML = `<div style="font-size:0.8em; margin-bottom:8px;">${name} (${u.role})</div><div style="font-size:0.7em; color:${u.status === 'Active' ? 'green' : 'red'};">${u.status}</div><div>${tools}</div>`;
             list.appendChild(div);
         });
     }
 
-    function modAction(type, target) {
+    window.modAction = function(type, target) {
         const ref = rdb.ref('users/' + target);
         if(type === 'mute') ref.update({ muteUntil: Date.now() + 600000 });
         if(type === 'kick') ref.update({ status: 'Kicked' });
         if(type === 'ban') ref.update({ status: 'Banned' });
         if(type === 'promote') ref.update({ role: 'Moderator' });
         if(type === 'approve') ref.update({ status: 'Active', rejoinPending: false });
-    }
+    };
 
-    function sendMessage() {
-        const input = document.getElementById('messageInput');
-        const msg = input.value.trim();
+    sendMsgBtn.onclick = function() {
+        const msg = messageInput.value.trim();
         if(!msg) return;
-
         rdb.ref('users/' + currentUser.name).once('value', (snap) => {
-            if(snap.val().muteUntil > Date.now()) return alert("MUTED BY MODERATOR.");
-            rdb.ref('messages').push({
-                sender: currentUser.name,
-                role: currentUser.role,
-                text: msg,
-                time: Date.now()
-            });
-            input.value = '';
+            if(snap.val().muteUntil > Date.now()) return alert("MUTED.");
+            rdb.ref('messages').push({ sender: currentUser.name, role: currentUser.role, text: msg, time: Date.now() });
+            messageInput.value = '';
         });
-    }
+    };
 
-    function requestRejoin() {
-        rdb.ref('users/' + currentUser.name).update({ rejoinPending: true });
-        document.getElementById('rejoinBtn').disabled = true;
-        document.getElementById('requestStatus').innerText = "Signal sent. Awaiting approval.";
-    }
+    messageInput.onkeypress = e => { if(e.key === 'Enter') sendMsgBtn.click(); };
+};
 
-    document.getElementById('messageInput').addEventListener('keypress', e => { if(e.key === 'Enter') sendMessage(); });
+function requestRejoin() {
+    firebase.database().ref('users/' + currentUser.name).update({ rejoinPending: true });
+    document.getElementById('rejoinBtn').disabled = true;
+    document.getElementById('requestStatus').innerText = "Signal sent.";
+}
 </script>
 </body>
 </html>
