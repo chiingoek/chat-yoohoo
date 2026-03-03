@@ -44,12 +44,12 @@
         header { height: 60px; background: rgba(17, 17, 17, 0.9); display: flex; justify-content: space-between; align-items: center; padding: 0 20px; border-bottom: 2px solid var(--primary); }
         main { display: flex; height: calc(100vh - 60px); }
         #sidebar { width: 300px; background: rgba(10, 10, 10, 0.9); border-right: 1px solid #222; padding: 15px; overflow-y: auto; }
-        #chatArea { flex: 1; display: flex; flex-direction: column; }
-        #chatContainer, #dmContainer { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+        #chatArea { flex: 1; display: flex; flex-direction: column; position: relative; }
+        #chatContainer, #dmContainer { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
         
-        /* Message & Reaction Styles */
+        /* Fixed Reaction Drawer Logic */
         .message { padding: 10px 15px; border-radius: 12px; max-width: 80%; font-size: 0.9em; line-height: 1.4; cursor: pointer; transition: 0.2s; position: relative; }
-        .message:hover { filter: brightness(1.2); }
+        .message:hover { filter: brightness(1.1); }
         .msg-Member { background: #222; align-self: flex-start; border-left: 3px solid #444; }
         .msg-Moderator { background: #1a252b; align-self: flex-start; border-left: 3px solid var(--mod); }
         .msg-Admin { background: #251a2b; align-self: flex-start; border-left: 3px solid var(--primary); }
@@ -57,20 +57,24 @@
         
         .reaction-drawer { 
             display: none; 
-            gap: 10px; 
-            background: #000; 
-            padding: 5px 10px; 
-            border-radius: 20px; 
+            gap: 12px; 
+            background: #111; 
+            padding: 8px 15px; 
+            border-radius: 30px; 
             border: 1px solid var(--primary);
             position: absolute;
-            bottom: -35px;
-            left: 10px;
-            z-index: 10;
+            top: -45px; /* Moved to top to avoid hiding behind input or bottom of screen */
+            left: 0;
+            z-index: 9999; /* Ensure it stays above everything */
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
         }
+        .msg-me .reaction-drawer { left: auto; right: 0; }
         .message.active-react .reaction-drawer { display: flex; }
-        .reaction { cursor: pointer; font-size: 1.1em; transition: 0.2s; }
-        .reaction:hover { transform: scale(1.3); }
-        .reaction-count-tag { font-size: 0.7em; background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 10px; margin-right: 4px; display: inline-block; margin-top: 5px; }
+        
+        .reaction { cursor: pointer; font-size: 1.2em; transition: 0.2s; filter: grayscale(0.2); }
+        .reaction:hover { transform: scale(1.4); filter: grayscale(0); }
+        
+        .reaction-count-tag { font-size: 0.75em; background: rgba(255,255,255,0.08); padding: 2px 8px; border-radius: 12px; margin-right: 5px; display: inline-flex; align-items: center; gap: 3px; margin-top: 5px; border: 1px solid rgba(255,255,255,0.05); }
 
         .user-row { background: #1a1a1a; padding: 12px; border-radius: 10px; margin-bottom: 10px; border: 1px solid #333; cursor: pointer; transition: 0.3s; }
         .mod-btn { font-size: 0.6em; padding: 4px 8px; margin-right: 4px; border-radius: 4px; cursor: pointer; border: none; font-weight: bold; color: white; }
@@ -193,6 +197,7 @@ window.onload = function() {
     function launchCircle() {
         document.getElementById('headerInfo').innerText = `${currentUser.name} // ${currentUser.role}`;
         
+        // Broadcast Chat Listener
         rdb.ref('messages').limitToLast(50).on('value', (snap) => {
             const container = document.getElementById('chatContainer');
             container.innerHTML = '';
@@ -202,28 +207,29 @@ window.onload = function() {
                 const div = document.createElement('div');
                 div.className = `message msg-${m.role} ${m.sender === currentUser.name ? 'msg-me' : ''}`;
                 
-                // Show Counts (always visible)
-                let countsHTML = '<div>';
+                // Visible Reaction Tags
+                let tagsHTML = '<div class="tags-container">';
                 const emotes = { up: '👍', cry: '😢', lol: '😂', heart: '❤️', pray: '🙏' };
                 for (let key in emotes) {
                     let count = (m.reactions && m.reactions[key]) ? Object.keys(m.reactions[key]).length : 0;
-                    if(count > 0) countsHTML += `<span class="reaction-count-tag">${emotes[key]} ${count}</span>`;
+                    if(count > 0) tagsHTML += `<span class="reaction-count-tag">${emotes[key]} ${count}</span>`;
                 }
-                countsHTML += '</div>';
+                tagsHTML += '</div>';
 
-                // Clickable Drawer
+                // Hidden Drawer (Shows on top of bubble)
                 let drawerHTML = `<div class="reaction-drawer">`;
                 for (let [key, emoji] of Object.entries(emotes)) {
-                    drawerHTML += `<span class="reaction" onclick="event.stopPropagation(); react('${msgId}', '${key}')">${emoji}</span>`;
+                    drawerHTML += `<span class="reaction" onclick="event.stopPropagation(); toggleReact('${msgId}', '${key}')">${emoji}</span>`;
                 }
                 drawerHTML += `</div>`;
 
                 div.innerHTML = `<div style="font-size:0.7em; opacity:0.5; margin-bottom:3px;">${m.sender}</div>
-                                 <div>${m.text}</div>${countsHTML}${drawerHTML}`;
+                                 <div class="msg-text">${m.text}</div>${tagsHTML}${drawerHTML}`;
                 
-                div.onclick = () => {
+                div.onclick = (e) => {
+                    const wasActive = div.classList.contains('active-react');
                     document.querySelectorAll('.message').forEach(el => el.classList.remove('active-react'));
-                    div.classList.toggle('active-react');
+                    if(!wasActive) div.classList.add('active-react');
                 };
 
                 container.appendChild(div);
@@ -244,7 +250,6 @@ window.onload = function() {
                 div.innerHTML = `<div style="font-size:0.85em;">${name} <small style="opacity:0.5;">(${u.role})</small></div>`;
                 div.onclick = () => { div.classList.remove('notif-glow'); openDM(name); };
 
-                // Hierarchy Protection Logic
                 const canAct = (currentUser.role === 'Admin') || (currentUser.role === 'Moderator' && u.role !== 'Admin');
 
                 if(currentUser.role !== 'Member' && canAct) {
@@ -255,8 +260,6 @@ window.onload = function() {
                     
                     if(currentUser.role === 'Admin') {
                         btnHTML += `<button class="mod-btn" style="background:#8b0000" onclick="event.stopPropagation(); mod('ban','${name}')">Ban</button>`;
-                        
-                        // DEMOTE Logic: Visible for Admins looking at ANY Moderator
                         if (u.role === 'Moderator') {
                             btnHTML += `<button class="mod-btn" style="background:#444" onclick="event.stopPropagation(); mod('demote','${name}')">Demote</button>`;
                         } else if (u.role === 'Member') {
@@ -271,27 +274,22 @@ window.onload = function() {
             });
         });
 
-        rdb.ref('dms').on('child_changed', (snap) => {
-            const roomID = snap.key;
-            if (roomID.includes(currentUser.name)) {
-                rdb.ref('dms/' + roomID).limitToLast(1).once('child_added', (mSnap) => {
-                    const msg = mSnap.val();
-                    if (msg.sender !== currentUser.name && activeDMTarget !== msg.sender) {
-                        const el = document.getElementById('user-' + msg.sender);
-                        if(el) el.classList.add('notif-glow');
-                    }
-                });
-            }
-        });
-
+        // Auto-refresh on status change
         rdb.ref('users/' + currentUser.name + '/status').on('value', (s) => {
             if(s.val() === 'Kicked' || s.val() === 'Banned') location.reload();
         });
     }
 
-    window.react = (msgId, type) => {
-        rdb.ref(`messages/${msgId}/reactions/${type}/${currentUser.name}`).set(true);
-        // Hide drawer after reacting
+    // New Toggle Logic for Reactions
+    window.toggleReact = (msgId, type) => {
+        const ref = rdb.ref(`messages/${msgId}/reactions/${type}/${currentUser.name}`);
+        ref.once('value', (snap) => {
+            if(snap.exists()) {
+                ref.remove(); // Un-react
+            } else {
+                ref.set(true); // React
+            }
+        });
         document.querySelectorAll('.message').forEach(el => el.classList.remove('active-react'));
     };
 
