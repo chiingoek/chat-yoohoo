@@ -46,11 +46,18 @@
         #sidebar { width: 300px; background: rgba(10, 10, 10, 0.9); border-right: 1px solid #222; padding: 15px; overflow-y: auto; }
         #chatArea { flex: 1; display: flex; flex-direction: column; }
         #chatContainer, #dmContainer { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
-        .message { padding: 10px 15px; border-radius: 12px; max-width: 80%; font-size: 0.9em; line-height: 1.4; }
+        .message { padding: 10px 15px; border-radius: 12px; max-width: 80%; font-size: 0.9em; line-height: 1.4; position: relative; }
         .msg-Member { background: #222; align-self: flex-start; border-left: 3px solid #444; }
         .msg-Moderator { background: #1a252b; align-self: flex-start; border-left: 3px solid var(--mod); }
         .msg-Admin { background: #251a2b; align-self: flex-start; border-left: 3px solid var(--primary); }
         .msg-me { align-self: flex-end; background: var(--primary); color: white; }
+        
+        /* Reactions Styles */
+        .reaction-bar { display: flex; gap: 8px; margin-top: 8px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 5px; }
+        .reaction { cursor: pointer; font-size: 1.1em; transition: 0.2s; filter: grayscale(0.3); display: flex; align-items: center; }
+        .reaction:hover { transform: scale(1.2); filter: grayscale(0); }
+        .reaction-count { font-size: 0.7em; margin-left: 3px; opacity: 0.8; }
+
         .user-row { background: #1a1a1a; padding: 12px; border-radius: 10px; margin-bottom: 10px; border: 1px solid #333; cursor: pointer; transition: 0.3s; }
         .mod-btn { font-size: 0.6em; padding: 4px 8px; margin-right: 4px; border-radius: 4px; cursor: pointer; border: none; font-weight: bold; color: white; }
         .notif-glow { border-color: var(--primary) !important; box-shadow: 0 0 15px var(--primary-glow); animation: pulse 1.5s infinite; }
@@ -172,19 +179,33 @@ window.onload = function() {
     function launchCircle() {
         document.getElementById('headerInfo').innerText = `${currentUser.name} // ${currentUser.role}`;
         
+        // Main Chat Listener with Reactions
         rdb.ref('messages').limitToLast(50).on('value', (snap) => {
             const container = document.getElementById('chatContainer');
             container.innerHTML = '';
             snap.forEach(c => {
                 const m = c.val();
+                const msgId = c.key;
                 const div = document.createElement('div');
                 div.className = `message msg-${m.role} ${m.sender === currentUser.name ? 'msg-me' : ''}`;
-                div.innerHTML = `<div style="font-size:0.7em; opacity:0.5; margin-bottom:3px;">${m.sender}</div>${m.text}`;
+                
+                // Reaction Bar Construction
+                let reactionHTML = '<div class="reaction-bar">';
+                const emotes = { up: '👍', cry: '😢', lol: '😂', heart: '❤️', pray: '🙏' };
+                for (let [key, emoji] of Object.entries(emotes)) {
+                    let count = (m.reactions && m.reactions[key]) ? Object.keys(m.reactions[key]).length : 0;
+                    reactionHTML += `<span class="reaction" onclick="react('${msgId}', '${key}')">${emoji}<span class="reaction-count">${count || ''}</span></span>`;
+                }
+                reactionHTML += '</div>';
+
+                div.innerHTML = `<div style="font-size:0.7em; opacity:0.5; margin-bottom:3px;">${m.sender}</div>
+                                 <div>${m.text}</div>${reactionHTML}`;
                 container.appendChild(div);
             });
             container.scrollTop = container.scrollHeight;
         });
 
+        // User Sidebar Listener with Hierarchy Logic
         rdb.ref('users').on('value', (snap) => {
             const list = document.getElementById('userList');
             list.innerHTML = '';
@@ -198,14 +219,24 @@ window.onload = function() {
                 div.innerHTML = `<div style="font-size:0.85em;">${name} <small style="opacity:0.5;">(${u.role})</small></div>`;
                 div.onclick = () => { div.classList.remove('notif-glow'); openDM(name); };
 
-                if(currentUser.role !== 'Member') {
+                // Hierarchy Protection: Mods can't touch Admins
+                const canAct = (currentUser.role === 'Admin') || (currentUser.role === 'Moderator' && u.role !== 'Admin');
+
+                if(currentUser.role !== 'Member' && canAct) {
                     const tools = document.createElement('div');
                     tools.style.marginTop = "8px";
                     let btnHTML = `<button class="mod-btn" style="background:#daa520" onclick="event.stopPropagation(); mod('mute','${name}')">Mute</button>
                                    <button class="mod-btn" style="background:#ff4500" onclick="event.stopPropagation(); mod('kick','${name}')">Kick</button>`;
+                    
                     if(currentUser.role === 'Admin') {
-                        btnHTML += `<button class="mod-btn" style="background:#8b0000" onclick="event.stopPropagation(); mod('ban','${name}')">Ban</button>
-                                    <button class="mod-btn" style="background:var(--mod)" onclick="event.stopPropagation(); mod('promote','${name}')">Mod</button>`;
+                        btnHTML += `<button class="mod-btn" style="background:#8b0000" onclick="event.stopPropagation(); mod('ban','${name}')">Ban</button>`;
+                        
+                        // Promote/Demote logic: Only demote if they were promoted by admin
+                        if (u.role === 'Moderator' && u.promotedByAdmin) {
+                            btnHTML += `<button class="mod-btn" style="background:#444" onclick="event.stopPropagation(); mod('demote','${name}')">Demote</button>`;
+                        } else if (u.role === 'Member') {
+                            btnHTML += `<button class="mod-btn" style="background:var(--mod)" onclick="event.stopPropagation(); mod('promote','${name}')">Mod</button>`;
+                        }
                     }
                     if(u.rejoinPending) btnHTML += `<button class="mod-btn" style="background:green; width:100%; margin-top:5px;" onclick="event.stopPropagation(); mod('approve','${name}')">Approve</button>`;
                     tools.innerHTML = btnHTML;
@@ -232,6 +263,11 @@ window.onload = function() {
             if(s.val() === 'Kicked' || s.val() === 'Banned') location.reload();
         });
     }
+
+    // Reaction Function
+    window.react = (msgId, type) => {
+        rdb.ref(`messages/${msgId}/reactions/${type}/${currentUser.name}`).set(true);
+    };
 
     window.openDM = function(target) {
         activeDMTarget = target;
@@ -278,7 +314,8 @@ window.onload = function() {
         if(type === 'mute') ref.update({ muteUntil: Date.now() + 600000 });
         if(type === 'kick') ref.update({ status: 'Kicked', rejoinPending: false });
         if(type === 'ban') ref.update({ status: 'Banned' });
-        if(type === 'promote') ref.update({ role: 'Moderator' });
+        if(type === 'promote') ref.update({ role: 'Moderator', promotedByAdmin: true });
+        if(type === 'demote') ref.update({ role: 'Member', promotedByAdmin: null });
         if(type === 'approve') ref.update({ status: 'Active', rejoinPending: false });
     }
 
