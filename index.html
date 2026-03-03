@@ -3,23 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Inner Circle | The Vault</title>
+    <title>YooHoo Chat | Connect</title>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --primary: #8a2be2;
-            --primary-glow: rgba(138, 43, 226, 0.4);
-            --mod: #00ced1;
+            --primary: #008cff; /* Electric Blue */
+            --primary-glow: rgba(0, 140, 255, 0.4);
+            --mod: #00ead3; /* Cyan */
             --bg: #050505;
             --surface: #111;
             --text: #e0e0e0;
+            --sidebar-bg: #0a0a0a;
         }
         * { box-sizing: border-box; }
         body {
             margin: 0; font-family: 'Montserrat', sans-serif;
             background-color: var(--bg); color: var(--text);
             height: 100vh; overflow: hidden;
-            background-image: radial-gradient(circle at center, #1a0033 0%, #050505 100%);
+            background-image: radial-gradient(circle at center, #001a33 0%, #050505 100%);
         }
         #authOverlay, #kickOverlay, #dmOverlay {
             position: fixed; inset: 0; background: rgba(0, 0, 0, 0.95);
@@ -40,43 +41,38 @@
         .btn-main {
             background: var(--primary); color: white; width: 100%; padding: 12px;
             margin-top: 10px; border: none; border-radius: 10px; font-weight: bold; cursor: pointer;
+            box-shadow: 0 0 15px var(--primary-glow);
         }
         header { height: 60px; background: rgba(17, 17, 17, 0.9); display: flex; justify-content: space-between; align-items: center; padding: 0 20px; border-bottom: 2px solid var(--primary); }
         main { display: flex; height: calc(100vh - 60px); }
-        #sidebar { width: 300px; background: rgba(10, 10, 10, 0.9); border-right: 1px solid #222; padding: 15px; overflow-y: auto; }
+        #sidebar { width: 300px; background: var(--sidebar-bg); border-right: 1px solid #222; padding: 15px; overflow-y: auto; }
         #chatArea { flex: 1; display: flex; flex-direction: column; position: relative; }
         #chatContainer, #dmContainer { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
         
-        /* Fixed Reaction Drawer Logic */
+        /* Message Bubbles */
         .message { padding: 10px 15px; border-radius: 12px; max-width: 80%; font-size: 0.9em; line-height: 1.4; cursor: pointer; transition: 0.2s; position: relative; }
-        .message:hover { filter: brightness(1.1); }
+        .message:hover { filter: brightness(1.2); }
         .msg-Member { background: #222; align-self: flex-start; border-left: 3px solid #444; }
-        .msg-Moderator { background: #1a252b; align-self: flex-start; border-left: 3px solid var(--mod); }
-        .msg-Admin { background: #251a2b; align-self: flex-start; border-left: 3px solid var(--primary); }
+        .msg-Moderator { background: #0a1f25; align-self: flex-start; border-left: 3px solid var(--mod); }
+        .msg-Admin { background: #0a162b; align-self: flex-start; border-left: 3px solid var(--primary); }
         .msg-me { align-self: flex-end; background: var(--primary); color: white; }
         
+        /* Reactions */
         .reaction-drawer { 
-            display: none; 
-            gap: 12px; 
-            background: #111; 
-            padding: 8px 15px; 
-            border-radius: 30px; 
-            border: 1px solid var(--primary);
-            position: absolute;
-            top: -45px; /* Moved to top to avoid hiding behind input or bottom of screen */
-            left: 0;
-            z-index: 9999; /* Ensure it stays above everything */
-            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+            display: none; gap: 12px; background: #111; padding: 8px 15px; 
+            border-radius: 30px; border: 1px solid var(--primary); position: absolute;
+            top: -45px; left: 0; z-index: 9999; box-shadow: 0 5px 15px rgba(0,0,0,0.5);
         }
         .msg-me .reaction-drawer { left: auto; right: 0; }
         .message.active-react .reaction-drawer { display: flex; }
-        
         .reaction { cursor: pointer; font-size: 1.2em; transition: 0.2s; filter: grayscale(0.2); }
         .reaction:hover { transform: scale(1.4); filter: grayscale(0); }
         
         .reaction-count-tag { font-size: 0.75em; background: rgba(255,255,255,0.08); padding: 2px 8px; border-radius: 12px; margin-right: 5px; display: inline-flex; align-items: center; gap: 3px; margin-top: 5px; border: 1px solid rgba(255,255,255,0.05); }
 
+        /* User List */
         .user-row { background: #1a1a1a; padding: 12px; border-radius: 10px; margin-bottom: 10px; border: 1px solid #333; cursor: pointer; transition: 0.3s; }
+        .user-row:hover { border-color: var(--primary); }
         .mod-btn { font-size: 0.6em; padding: 4px 8px; margin-right: 4px; border-radius: 4px; cursor: pointer; border: none; font-weight: bold; color: white; }
         .notif-glow { border-color: var(--primary) !important; box-shadow: 0 0 15px var(--primary-glow); animation: pulse 1.5s infinite; }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
@@ -86,52 +82,52 @@
 
 <div id="authOverlay">
     <div class="card">
-        <h1 id="authTitle">Initiation</h1>
-        <input type="text" id="userIn" placeholder="Identity (Username)">
-        <input type="password" id="passIn" placeholder="Cipher (Password)">
-        <button id="mainAuthBtn" class="btn-main">Access The Circle</button>
-        <button id="toggleBtn" style="background:none; border:none; color:var(--primary); cursor:pointer; margin-top:10px; font-size:0.8em; text-decoration:underline;">New Initiate? Register</button>
+        <h1 id="authTitle">Login</h1>
+        <input type="text" id="userIn" placeholder="Username">
+        <input type="password" id="passIn" placeholder="Password">
+        <button id="mainAuthBtn" class="btn-main">Login</button>
+        <button id="toggleBtn" style="background:none; border:none; color:var(--primary); cursor:pointer; margin-top:10px; font-size:0.8em; text-decoration:underline;">Need an account? Register</button>
     </div>
 </div>
 
 <div id="kickOverlay" style="display:none;">
     <div class="card">
-        <h2 style="color:red;">Exiled</h2>
-        <p>Your access has been revoked.</p>
-        <button id="rejoinBtn" class="btn-main" onclick="requestRejoin()">Request Rejoin</button>
+        <h2 style="color:#ff4d4d;">Access Denied</h2>
+        <p>Your account is currently suspended.</p>
+        <button id="rejoinBtn" class="btn-main" onclick="requestRejoin()">Request Reactivation</button>
         <p id="requestStatus" style="font-size:0.8em; color:gray; margin-top:10px;"></p>
     </div>
 </div>
 
 <div id="dmOverlay" style="display:none;">
-    <div class="card" style="width: 500px; height: 600px; display: flex; flex-direction: column;">
+    <div class="card" style="width: 500px; height: 600px; display: flex; flex-direction: column; border-color: var(--mod); box-shadow: 0 0 40px rgba(0, 234, 211, 0.2);">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-            <h2 id="dmTargetName" style="font-size:0.9em; margin:0;">Secure Link</h2>
-            <button onclick="closeDM()" style="background:#444; color:white; border:none; padding:5px 10px; cursor:pointer; border-radius:5px;">Close</button>
+            <h2 id="dmTargetName" style="font-size:0.8em; margin:0; color: var(--mod);">Direct Message</h2>
+            <button onclick="closeDM()" style="background:#333; color:white; border:none; padding:5px 10px; cursor:pointer; border-radius:5px;">Close</button>
         </div>
         <div id="dmContainer" style="background:#0a0a0a; border-radius:10px; border:1px solid #333; margin-bottom:15px; padding:15px;"></div>
         <div style="display:flex; gap:10px;">
-            <input type="text" id="dmInput" placeholder="Write in shadows..." style="margin:0;">
-            <button class="btn-main" style="width:80px; margin:0;" onclick="sendDM()">Send</button>
+            <input type="text" id="dmInput" placeholder="Type a message..." style="margin:0;">
+            <button class="btn-main" style="width:80px; margin:0; background: var(--mod);" onclick="sendDM()">Send</button>
         </div>
     </div>
 </div>
 
 <header>
-    <h2>Inner Circle</h2>
-    <div id="headerInfo" style="font-size:0.8em; opacity:0.8;"></div>
-    <button onclick="location.reload()" style="background:none; color:red; border:1px solid red; padding:5px 10px; border-radius:5px; cursor:pointer;">Logout</button>
+    <h2>YOOHOO CHAT</h2>
+    <div id="headerInfo" style="font-size:0.8em; opacity:0.8; color: var(--mod);"></div>
+    <button onclick="location.reload()" style="background:none; color:#ff4d4d; border:1px solid #ff4d4d; padding:5px 10px; border-radius:5px; cursor:pointer;">Logout</button>
 </header>
 
 <main>
     <div id="sidebar">
-        <h3 style="font-size: 0.65em; color: var(--primary); margin-bottom: 15px; letter-spacing: 2px;">INITIATES (Click to DM)</h3>
+        <h3 style="font-size: 0.65em; color: var(--primary); margin-bottom: 15px; letter-spacing: 2px;">ONLINE USERS</h3>
         <div id="userList"></div>
     </div>
     <div id="chatArea">
         <div id="chatContainer"></div>
         <div id="inputArea" style="padding:20px; background:#0f0f0f; display:flex; gap:10px; border-top:1px solid #222;">
-            <input type="text" id="messageInput" placeholder="Public broadcast..." autocomplete="off" style="margin:0;">
+            <input type="text" id="messageInput" placeholder="Message everyone..." autocomplete="off" style="margin:0;">
             <button class="btn-main" style="width:100px; margin:0;" id="sendMsgBtn">Send</button>
         </div>
     </div>
@@ -161,9 +157,9 @@ window.onload = function() {
 
     document.getElementById('toggleBtn').onclick = () => {
         isRegisterMode = !isRegisterMode;
-        document.getElementById('authTitle').innerText = isRegisterMode ? "Register" : "Initiation";
-        document.getElementById('mainAuthBtn').innerText = isRegisterMode ? "Sign Up" : "Access The Circle";
-        document.getElementById('toggleBtn').innerText = isRegisterMode ? "Already an initiate? Login" : "New Initiate? Register";
+        document.getElementById('authTitle').innerText = isRegisterMode ? "Register" : "Login";
+        document.getElementById('mainAuthBtn').innerText = isRegisterMode ? "Sign Up" : "Login";
+        document.getElementById('toggleBtn').innerText = isRegisterMode ? "Already have an account? Login" : "Need an account? Register";
     };
 
     document.getElementById('mainAuthBtn').onclick = () => {
@@ -174,13 +170,13 @@ window.onload = function() {
         rdb.ref('users/' + u).once('value', (snap) => {
             const data = snap.val();
             if(isRegisterMode) {
-                if(data) return alert("Taken.");
+                if(data) return alert("Username already taken.");
                 rdb.ref('users/' + u).set({ pass: p, role: "Member", status: "Active", muteUntil: 0, rejoinPending: false });
-                alert("Identity Registered. Now login.");
+                alert("Registered successfully. Please login.");
                 document.getElementById('toggleBtn').click();
             } else {
                 if(data && data.pass === p) {
-                    if(data.status === 'Banned') return alert("PERMANENTLY EXILED.");
+                    if(data.status === 'Banned') return alert("This account has been permanently banned.");
                     currentUser = { name: u, ...data };
                     if(data.status === 'Kicked') {
                         document.getElementById('authOverlay').style.display = 'none';
@@ -188,16 +184,15 @@ window.onload = function() {
                         return;
                     }
                     document.getElementById('authOverlay').style.display = 'none';
-                    launchCircle();
-                } else alert("Access Denied.");
+                    launchChat();
+                } else alert("Access denied.");
             }
         });
     };
 
-    function launchCircle() {
+    function launchChat() {
         document.getElementById('headerInfo').innerText = `${currentUser.name} // ${currentUser.role}`;
         
-        // Broadcast Chat Listener
         rdb.ref('messages').limitToLast(50).on('value', (snap) => {
             const container = document.getElementById('chatContainer');
             container.innerHTML = '';
@@ -207,7 +202,6 @@ window.onload = function() {
                 const div = document.createElement('div');
                 div.className = `message msg-${m.role} ${m.sender === currentUser.name ? 'msg-me' : ''}`;
                 
-                // Visible Reaction Tags
                 let tagsHTML = '<div class="tags-container">';
                 const emotes = { up: '👍', cry: '😢', lol: '😂', heart: '❤️', pray: '🙏' };
                 for (let key in emotes) {
@@ -216,7 +210,6 @@ window.onload = function() {
                 }
                 tagsHTML += '</div>';
 
-                // Hidden Drawer (Shows on top of bubble)
                 let drawerHTML = `<div class="reaction-drawer">`;
                 for (let [key, emoji] of Object.entries(emotes)) {
                     drawerHTML += `<span class="reaction" onclick="event.stopPropagation(); toggleReact('${msgId}', '${key}')">${emoji}</span>`;
@@ -226,7 +219,7 @@ window.onload = function() {
                 div.innerHTML = `<div style="font-size:0.7em; opacity:0.5; margin-bottom:3px;">${m.sender}</div>
                                  <div class="msg-text">${m.text}</div>${tagsHTML}${drawerHTML}`;
                 
-                div.onclick = (e) => {
+                div.onclick = () => {
                     const wasActive = div.classList.contains('active-react');
                     document.querySelectorAll('.message').forEach(el => el.classList.remove('active-react'));
                     if(!wasActive) div.classList.add('active-react');
@@ -263,7 +256,7 @@ window.onload = function() {
                         if (u.role === 'Moderator') {
                             btnHTML += `<button class="mod-btn" style="background:#444" onclick="event.stopPropagation(); mod('demote','${name}')">Demote</button>`;
                         } else if (u.role === 'Member') {
-                            btnHTML += `<button class="mod-btn" style="background:var(--mod)" onclick="event.stopPropagation(); mod('promote','${name}')">Mod</button>`;
+                            btnHTML += `<button class="mod-btn" style="background:var(--mod); color:#000;" onclick="event.stopPropagation(); mod('promote','${name}')">Mod</button>`;
                         }
                     }
                     if(u.rejoinPending) btnHTML += `<button class="mod-btn" style="background:green; width:100%; margin-top:5px;" onclick="event.stopPropagation(); mod('approve','${name}')">Approve</button>`;
@@ -274,28 +267,23 @@ window.onload = function() {
             });
         });
 
-        // Auto-refresh on status change
         rdb.ref('users/' + currentUser.name + '/status').on('value', (s) => {
             if(s.val() === 'Kicked' || s.val() === 'Banned') location.reload();
         });
     }
 
-    // New Toggle Logic for Reactions
     window.toggleReact = (msgId, type) => {
         const ref = rdb.ref(`messages/${msgId}/reactions/${type}/${currentUser.name}`);
         ref.once('value', (snap) => {
-            if(snap.exists()) {
-                ref.remove(); // Un-react
-            } else {
-                ref.set(true); // React
-            }
+            if(snap.exists()) ref.remove();
+            else ref.set(true);
         });
         document.querySelectorAll('.message').forEach(el => el.classList.remove('active-react'));
     };
 
     window.openDM = function(target) {
         activeDMTarget = target;
-        document.getElementById('dmTargetName').innerText = `ENCRYPTED LINK: ${target}`;
+        document.getElementById('dmTargetName').innerText = `Messaging: ${target}`;
         document.getElementById('dmOverlay').style.display = 'flex';
         const roomID = [currentUser.name, target].sort().join('_');
         if(dmListener) rdb.ref('dms/' + roomID).off();
@@ -327,7 +315,7 @@ window.onload = function() {
         const text = document.getElementById('messageInput').value.trim();
         if(!text) return;
         rdb.ref('users/' + currentUser.name).once('value', (snap) => {
-            if(snap.val().muteUntil > Date.now()) return alert("SILENCED.");
+            if(snap.val().muteUntil > Date.now()) return alert("Your account is muted.");
             rdb.ref('messages').push({ sender: currentUser.name, role: currentUser.role, text: text });
             document.getElementById('messageInput').value = '';
         });
@@ -351,7 +339,7 @@ function requestRejoin() {
     const u = document.getElementById('userIn').value.trim();
     firebase.database().ref('users/' + u).update({ rejoinPending: true });
     document.getElementById('rejoinBtn').disabled = true;
-    document.getElementById('requestStatus').innerText = "Signal sent.";
+    document.getElementById('requestStatus').innerText = "Signal sent to staff.";
 }
 </script>
 </body>
