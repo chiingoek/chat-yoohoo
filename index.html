@@ -33,7 +33,7 @@
             width: 400px; text-align: center;
         }
         h1, h2 { letter-spacing: 5px; text-transform: uppercase; color: var(--primary); text-shadow: 0 0 10px var(--primary-glow); }
-        input {
+        input[type="text"], input[type="password"] {
             width: 100%; padding: 12px; margin: 10px 0; border-radius: 10px;
             border: 1px solid #333; background: #0a0a0a; color: #fff; transition: 0.3s;
         }
@@ -57,6 +57,11 @@
         .msg-Admin { background: #0a162b; align-self: flex-start; border-left: 3px solid var(--primary); }
         .msg-me { align-self: flex-end; background: var(--primary); color: white; }
         
+        /* Photo Styling */
+        .photo-msg { max-width: 100%; border-radius: 8px; margin: 5px 0; display: block; border: 1px solid rgba(255,255,255,0.1); }
+        #imagePreviewContainer { display: none; padding: 10px 20px; background: #111; border-top: 1px solid #222; align-items: center; gap: 15px; }
+        #imagePreview { height: 50px; border-radius: 5px; border: 1px solid var(--primary); }
+
         /* Reactions */
         .reaction-drawer { 
             display: none; gap: 12px; background: #111; padding: 8px 15px; 
@@ -65,11 +70,11 @@
         }
         .msg-me .reaction-drawer { left: auto; right: 0; }
         .message.active-react .reaction-drawer { display: flex; }
-        .reaction { cursor: pointer; font-size: 1.2em; transition: 0.2s; filter: grayscale(0.2); }
-        .reaction:hover { transform: scale(1.4); filter: grayscale(0); }
+        .reaction { cursor: pointer; font-size: 1.2em; transition: 0.2s; }
+        .reaction:hover { transform: scale(1.4); }
         .reaction-count-tag { font-size: 0.75em; background: rgba(255,255,255,0.08); padding: 2px 8px; border-radius: 12px; margin-right: 5px; display: inline-flex; align-items: center; gap: 3px; margin-top: 5px; border: 1px solid rgba(255,255,255,0.05); }
 
-        /* User List */
+        /* User List & Notifications */
         .user-row { background: #1a1a1a; padding: 12px; border-radius: 10px; margin-bottom: 10px; border: 1px solid #333; cursor: pointer; transition: 0.3s; position: relative; }
         .user-row:hover { border-color: var(--primary); }
         .mod-btn { font-size: 0.6em; padding: 4px 8px; margin-right: 4px; border-radius: 4px; cursor: pointer; border: none; font-weight: bold; color: white; }
@@ -79,9 +84,9 @@
             box-shadow: 0 0 15px var(--primary-glow); 
             animation: pulse 1.5s infinite; 
         }
-        @keyframes pulse { 0% { opacity: 1; border-width: 1px; } 50% { opacity: 0.7; border-width: 2px; } 100% { opacity: 1; border-width: 1px; } }
+        @keyframes pulse { 0% { border-color: var(--primary); } 50% { border-color: white; } 100% { border-color: var(--primary); } }
         
-        #viewIndicator { font-size: 0.7em; color: var(--primary); letter-spacing: 2px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;}
+        #viewIndicator { font-size: 0.65em; color: var(--primary); letter-spacing: 2px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;}
     </style>
 </head>
 <body>
@@ -114,245 +119,28 @@
 <main>
     <div id="sidebar">
         <div id="viewIndicator">
-            <span>ONLINE USERS</span>
-            <button id="backToGlobal" style="display:none; background:var(--primary); border:none; color:white; font-size:10px; padding:2px 5px; cursor:pointer; border-radius:3px;" onclick="loadGlobalChat()">BACK TO GLOBAL</button>
+            <span id="listTitle">ONLINE USERS</span>
+            <button id="backToGlobal" style="display:none; background:var(--primary); border:none; color:white; font-size:10px; padding:3px 7px; cursor:pointer; border-radius:5px;" onclick="loadGlobalChat()">BACK TO GLOBAL</button>
         </div>
         <div id="userList"></div>
     </div>
     <div id="chatArea">
         <div id="chatContainer"></div>
-        <div id="inputArea" style="padding:20px; background:#0f0f0f; display:flex; gap:10px; border-top:1px solid #222;">
+        
+        <div id="imagePreviewContainer">
+            <img id="imagePreview" src="">
+            <span id="fileName" style="font-size: 0.8em; color: gray; flex: 1;"></span>
+            <button onclick="clearImage()" style="background:none; border:none; color:#ff4d4d; cursor:pointer;">✕</button>
+        </div>
+
+        <div id="inputArea" style="padding:15px 20px; background:#0f0f0f; display:flex; gap:10px; border-top:1px solid #222; align-items:center;">
+            <label for="fileInput" style="cursor:pointer; font-size:1.5em; padding:0 5px;">📎</label>
+            <input type="file" id="fileInput" accept="image/*" style="display:none;">
             <input type="text" id="messageInput" placeholder="Message..." autocomplete="off" style="margin:0;">
-            <button class="btn-main" style="width:100px; margin:0;" id="sendMsgBtn">Send</button>
+            <button class="btn-main" style="width:80px; margin:0;" id="sendMsgBtn">Send</button>
         </div>
     </div>
 </main>
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-
-<script>
-window.onload = function() {
-    const firebaseConfig = {
-        apiKey: "AIzaSyDtGHGk144-eQIllFpwABXk8Ss4FwCgQME",
-        authDomain: "circle-38d10.firebaseapp.com",
-        databaseURL: "https://circle-38d10-default-rtdb.firebaseio.com",
-        projectId: "circle-38d10",
-        storageBucket: "circle-38d10.firebasestorage.app",
-        messagingSenderId: "122771546745",
-        appId: "1:122771546745:web:c766e8da22974e877aeaa8"
-    };
-
-    firebase.initializeApp(firebaseConfig);
-    const rdb = firebase.database();
-    let currentUser = null;
-    let isRegisterMode = false;
-    let activeDMTarget = null;
-    let currentChatRef = null;
-
-    document.getElementById('toggleBtn').onclick = () => {
-        isRegisterMode = !isRegisterMode;
-        document.getElementById('authTitle').innerText = isRegisterMode ? "Register" : "Login";
-        document.getElementById('mainAuthBtn').innerText = isRegisterMode ? "Sign Up" : "Login";
-        document.getElementById('toggleBtn').innerText = isRegisterMode ? "Already have an account? Login" : "Need an account? Register";
-    };
-
-    document.getElementById('mainAuthBtn').onclick = () => {
-        const u = document.getElementById('userIn').value.trim();
-        const p = document.getElementById('passIn').value;
-        if(!u || !p) return;
-
-        rdb.ref('users/' + u).once('value', (snap) => {
-            const data = snap.val();
-            if(isRegisterMode) {
-                if(data) return alert("Username already taken.");
-                rdb.ref('users/' + u).set({ pass: p, role: "Member", status: "Active", muteUntil: 0, rejoinPending: false });
-                alert("Registered successfully. Please login.");
-                document.getElementById('toggleBtn').click();
-            } else {
-                if(data && data.pass === p) {
-                    if(data.status === 'Banned') return alert("This account has been permanently banned.");
-                    currentUser = { name: u, ...data };
-                    if(data.status === 'Kicked') {
-                        document.getElementById('authOverlay').style.display = 'none';
-                        document.getElementById('kickOverlay').style.display = 'flex';
-                        return;
-                    }
-                    document.getElementById('authOverlay').style.display = 'none';
-                    launchChat();
-                } else alert("Access denied.");
-            }
-        });
-    };
-
-    function launchChat() {
-        document.getElementById('headerInfo').innerText = `${currentUser.name} // ${currentUser.role}`;
-        loadGlobalChat();
-        listenForNotifications();
-
-        // Admin/Mod monitoring
-        rdb.ref('users/' + currentUser.name + '/status').on('value', (s) => {
-            if(s.val() === 'Kicked' || s.val() === 'Banned') location.reload();
-        });
-
-        // User List Sidebar
-        rdb.ref('users').on('value', (snap) => {
-            const list = document.getElementById('userList');
-            list.innerHTML = '';
-            snap.forEach(c => {
-                const name = c.key;
-                if(name === currentUser.name) return;
-                const u = c.val();
-                const div = document.createElement('div');
-                div.className = 'user-row';
-                div.id = 'user-row-' + name;
-                div.innerHTML = `<div style="font-size:0.85em;">${name} <small style="opacity:0.5;">(${u.role})</small></div>`;
-                div.onclick = () => { 
-                    div.classList.remove('notif-glow'); 
-                    openDM(name); 
-                };
-
-                const canAct = (currentUser.role === 'Admin') || (currentUser.role === 'Moderator' && u.role !== 'Admin');
-                if(currentUser.role !== 'Member' && canAct) {
-                    const tools = document.createElement('div');
-                    tools.style.marginTop = "8px";
-                    let btnHTML = `<button class="mod-btn" style="background:#daa520" onclick="event.stopPropagation(); mod('mute','${name}')">Mute</button>
-                                   <button class="mod-btn" style="background:#ff4500" onclick="event.stopPropagation(); mod('kick','${name}')">Kick</button>`;
-                    if(currentUser.role === 'Admin') {
-                        btnHTML += `<button class="mod-btn" style="background:#8b0000" onclick="event.stopPropagation(); mod('ban','${name}')">Ban</button>`;
-                        if (u.role === 'Moderator') btnHTML += `<button class="mod-btn" style="background:#444" onclick="event.stopPropagation(); mod('demote','${name}')">Demote</button>`;
-                        else if (u.role === 'Member') btnHTML += `<button class="mod-btn" style="background:var(--mod); color:#000;" onclick="event.stopPropagation(); mod('promote','${name}')">Mod</button>`;
-                    }
-                    if(u.rejoinPending) btnHTML += `<button class="mod-btn" style="background:green; width:100%; margin-top:5px;" onclick="event.stopPropagation(); mod('approve','${name}')">Approve</button>`;
-                    tools.innerHTML = btnHTML;
-                    div.appendChild(tools);
-                }
-                list.appendChild(div);
-            });
-        });
-    }
-
-    window.loadGlobalChat = function() {
-        activeDMTarget = null;
-        document.getElementById('backToGlobal').style.display = 'none';
-        document.getElementById('messageInput').placeholder = "Message everyone...";
-        if(currentChatRef) currentChatRef.off();
-        
-        currentChatRef = rdb.ref('messages').limitToLast(50);
-        currentChatRef.on('value', renderMessages);
-    }
-
-    window.openDM = function(target) {
-        activeDMTarget = target;
-        document.getElementById('backToGlobal').style.display = 'block';
-        document.getElementById('messageInput').placeholder = `Messaging ${target}...`;
-        
-        const roomID = [currentUser.name, target].sort().join('_');
-        if(currentChatRef) currentChatRef.off();
-        
-        currentChatRef = rdb.ref('dms/' + roomID).limitToLast(50);
-        currentChatRef.on('value', renderMessages);
-    }
-
-    function renderMessages(snap) {
-        const container = document.getElementById('chatContainer');
-        container.innerHTML = '';
-        snap.forEach(c => {
-            const m = c.val();
-            const msgId = c.key;
-            const div = document.createElement('div');
-            div.className = `message msg-${m.role || 'Member'} ${m.sender === currentUser.name ? 'msg-me' : ''}`;
-            
-            let tagsHTML = '<div class="tags-container">';
-            const emotes = { up: '👍', cry: '😢', lol: '😂', heart: '❤️', pray: '🙏' };
-            for (let key in emotes) {
-                let count = (m.reactions && m.reactions[key]) ? Object.keys(m.reactions[key]).length : 0;
-                if(count > 0) tagsHTML += `<span class="reaction-count-tag">${emotes[key]} ${count}</span>`;
-            }
-            tagsHTML += '</div>';
-
-            let drawerHTML = `<div class="reaction-drawer">`;
-            for (let [key, emoji] of Object.entries(emotes)) {
-                drawerHTML += `<span class="reaction" onclick="event.stopPropagation(); toggleReact('${msgId}', '${key}')">${emoji}</span>`;
-            }
-            drawerHTML += `</div>`;
-
-            div.innerHTML = `<div style="font-size:0.7em; opacity:0.5; margin-bottom:3px;">${m.sender}</div>
-                             <div class="msg-text">${m.text}</div>${tagsHTML}${drawerHTML}`;
-            
-            div.onclick = () => {
-                const wasActive = div.classList.contains('active-react');
-                document.querySelectorAll('.message').forEach(el => el.classList.remove('active-react'));
-                if(!wasActive) div.classList.add('active-react');
-            };
-            container.appendChild(div);
-        });
-        container.scrollTop = container.scrollHeight;
-    }
-
-    function listenForNotifications() {
-        // Listen for ANY new DM in any room involving the user
-        rdb.ref('dms').on('child_added', (snapshot) => {
-            const roomID = snapshot.key;
-            if (roomID.includes(currentUser.name)) {
-                // Listen to the last message in that room
-                rdb.ref('dms/' + roomID).limitToLast(1).on('child_added', (msgSnap) => {
-                    const msg = msgSnap.val();
-                    // If message is not from me and I'm not looking at this target
-                    if (msg.sender !== currentUser.name && activeDMTarget !== msg.sender) {
-                        const row = document.getElementById('user-row-' + msg.sender);
-                        if (row) row.classList.add('notif-glow');
-                    }
-                });
-            }
-        });
-    }
-
-    document.getElementById('sendMsgBtn').onclick = () => {
-        const text = document.getElementById('messageInput').value.trim();
-        if(!text) return;
-        
-        rdb.ref('users/' + currentUser.name).once('value', (snap) => {
-            if(snap.val().muteUntil > Date.now()) return alert("Your account is muted.");
-            
-            if(activeDMTarget) {
-                const roomID = [currentUser.name, activeDMTarget].sort().join('_');
-                rdb.ref('dms/' + roomID).push({ sender: currentUser.name, text: text, time: Date.now() });
-            } else {
-                rdb.ref('messages').push({ sender: currentUser.name, role: currentUser.role, text: text });
-            }
-            document.getElementById('messageInput').value = '';
-        });
-    };
-
-    window.toggleReact = (msgId, type) => {
-        const path = activeDMTarget ? `dms/${[currentUser.name, activeDMTarget].sort().join('_')}/${msgId}` : `messages/${msgId}`;
-        const ref = rdb.ref(`${path}/reactions/${type}/${currentUser.name}`);
-        ref.once('value', (snap) => {
-            if(snap.exists()) ref.remove();
-            else ref.set(true);
-        });
-    };
-
-    window.mod = (type, target) => {
-        const ref = rdb.ref('users/' + target);
-        if(type === 'mute') ref.update({ muteUntil: Date.now() + 600000 });
-        if(type === 'kick') ref.update({ status: 'Kicked', rejoinPending: false });
-        if(type === 'ban') ref.update({ status: 'Banned' });
-        if(type === 'promote') ref.update({ role: 'Moderator' });
-        if(type === 'demote') ref.update({ role: 'Member' });
-        if(type === 'approve') ref.update({ status: 'Active', rejoinPending: false });
-    }
-
-    document.getElementById('messageInput').addEventListener('keypress', e => { if(e.key === 'Enter') document.getElementById('sendMsgBtn').click(); });
-};
-
-function requestRejoin() {
-    const u = document.getElementById('userIn').value.trim();
-    firebase.database().ref('users/' + u).update({ rejoinPending: true });
-    document.getElementById('rejoinBtn').disabled = true;
-    document.getElementById('requestStatus').innerText = "Signal sent to staff.";
-}
-</script>
-</body>
-</html>
+<script src="
