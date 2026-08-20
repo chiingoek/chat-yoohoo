@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YooHoo Chat | Connect</title>
+    <title>YooHoo Chat | Secrets</title>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -22,7 +22,7 @@
             height: 100vh; overflow: hidden;
             background-image: radial-gradient(circle at center, #001a33 0%, #050505 100%);
         }
-        #authOverlay, #kickOverlay {
+        #authOverlay {
             position: fixed; inset: 0; background: rgba(0, 0, 0, 0.95);
             backdrop-filter: blur(15px); z-index: 1000;
             display: flex; justify-content: center; align-items: center;
@@ -48,74 +48,69 @@
         #sidebar { width: 300px; background: var(--sidebar-bg); border-right: 1px solid #222; padding: 15px; overflow-y: auto; }
         #chatArea { flex: 1; display: flex; flex-direction: column; position: relative; }
         #chatContainer { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
-       
+        
         /* Message Bubbles */
         .message { padding: 10px 15px; border-radius: 12px; max-width: 80%; font-size: 0.9em; line-height: 1.4; position: relative; }
         .msg-Admin { background: #0a162b; align-self: flex-start; border-left: 3px solid var(--primary); }
-       
+        
         /* User List */
         .user-row { background: #1a1a1a; padding: 12px; border-radius: 10px; margin-bottom: 10px; border: 1px solid #333; transition: 0.3s; position: relative; }
         #viewIndicator { font-size: 0.7em; color: var(--primary); letter-spacing: 2px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;}
 
         /* PUZZLE SPECIFIC STYLES */
+        
+        /* Custom oversized question mark cursor encoded as SVG */
         .clue-target {
-            cursor: help !important; /* Changes cursor to question mark */
+            cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="filter: drop-shadow(0px 0px 3px black);"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>') 20 20, help !important;
         }
-       
-        /* Clue Display Overlay */
-        #clueOverlay {
-            position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px);
+
+        /* Periodic Blur Animation for Messages */
+        .blur-effect {
+            animation: periodic-blur 7s infinite;
+        }
+        
+        /* Staggered animations so they don't all blur at the same time */
+        .blur-1 { animation-delay: 0s; }
+        .blur-2 { animation-delay: 2s; }
+        .blur-3 { animation-delay: 4s; }
+        .blur-4 { animation-delay: 6s; }
+
+        @keyframes periodic-blur {
+            0%, 85%, 100% { filter: blur(0px); }
+            92% { filter: blur(3.5px); }
+        }
+        
+        /* Modal Popup Styles */
+        #secretOverlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(5px);
             z-index: 9999; display: none; justify-content: center; align-items: center;
-            text-align: center; font-size: 3.5rem; font-weight: bold;
-            letter-spacing: 10px; color: #ff4d4d; text-shadow: 0 0 30px rgba(255, 77, 77, 0.9);
+        }
+        
+        .secret-modal {
+            background: #1a1a1a; border: 1px solid #555; border-radius: 12px;
+            padding: 30px; width: 450px; max-width: 90%; color: white;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8); position: relative;
+            font-size: 1.05em; line-height: 1.6; text-align: left;
         }
 
-        @keyframes glitch-flash {
-            0% { opacity: 0; transform: scale(0.9); }
-            5% { opacity: 1; transform: scale(1.05); }
-            10% { transform: scale(1); }
-            90% { opacity: 1; transform: scale(1); }
-            100% { opacity: 0; transform: scale(1.1); }
+        .close-btn {
+            position: absolute; top: 10px; right: 15px; font-size: 1.5em;
+            color: #aaa; cursor: pointer; background: none; border: none; padding: 0;
+            transition: color 0.2s;
         }
-
-        /* Glitched Admin Message */
-        .glitched-bubble {
-            animation: glitch-box 3s infinite;
-            overflow: hidden;
-        }
-        .glitched-text {
-            font-family: monospace;
-            font-weight: bold;
-            font-size: 1.2em;
-            letter-spacing: 4px;
-            color: #ff4d4d;
-            text-shadow: 2px 0 red, -2px 0 cyan;
-            animation: glitch-text 0.2s infinite alternate;
-        }
-
-        @keyframes glitch-box {
-            0%, 100% { transform: translate(0) skew(0deg); filter: blur(0px); }
-            20% { transform: translate(-3px, 2px) skew(-5deg); filter: blur(1px); }
-            22% { transform: translate(0) skew(0deg); filter: blur(0px); }
-            60% { transform: translate(3px, -2px) skew(5deg); }
-            62% { transform: translate(0) skew(0deg); }
-            80% { transform: translate(-5px, 0) skew(-15deg); filter: blur(4px); }
-            85% { transform: translate(0) skew(0deg); filter: blur(0px); }
-        }
-
-        @keyframes glitch-text {
-            0% { transform: translate3d(2px, 0, 0); opacity: 1; }
-            33% { transform: translate3d(-2px, 1px, 0); opacity: 0.8; }
-            66% { transform: translate3d(2px, -1px, 0); opacity: 0.9; }
-            100% { transform: translate3d(-1px, 0, 0); opacity: 1; }
-        }
+        
+        .close-btn:hover { color: white; }
 
     </style>
 </head>
 <body>
 
-<div id="clueOverlay">
-    <span id="clueText"></span>
+<!-- The Secret Popup Modal -->
+<div id="secretOverlay">
+    <div class="secret-modal">
+        <button class="close-btn" onclick="window.closeModal()">&times;</button>
+        <div id="secretText"></div>
+    </div>
 </div>
 
 <div id="authOverlay">
@@ -124,12 +119,12 @@
         <input type="text" id="userIn" placeholder="Username">
         <input type="password" id="passIn" placeholder="Password">
         <button id="mainAuthBtn" class="btn-main">Login</button>
-        <button id="toggleBtn" style="background:none; border:none; color:var(--primary); cursor:pointer; margin-top:10px; font-size:0.8em; text-decoration:underline;">Register is currently locked</button>
+        <button id="toggleBtn" style="background:none; border:none; color:var(--primary); cursor:pointer; margin-top:10px; font-size:0.8em; text-decoration:underline;">Registration Locked</button>
     </div>
 </div>
 
 <header>
-    <h2 id="yoohooLogo" class="clue-target">YOOHOO</h2>
+    <h2 id="clue1" class="clue-target" style="cursor: pointer;">YOOHOO</h2>
     <div id="headerInfo" style="font-size:0.8em; opacity:0.8; color: var(--mod);"></div>
     <button onclick="location.reload()" style="background:none; color:#ff4d4d; border:1px solid #ff4d4d; padding:5px 10px; border-radius:5px; cursor:pointer;">Logout</button>
 </header>
@@ -145,7 +140,7 @@
         <div id="chatContainer"></div>
         <div id="inputArea" style="padding:20px; background:#0f0f0f; display:flex; gap:10px; border-top:1px solid #222;">
             <input type="text" id="messageInput" placeholder="Message everyone..." autocomplete="off" style="margin:0; cursor: not-allowed;" disabled>
-            <button class="btn-main clue-target" style="width:100px; margin:0;" id="sendMsgBtn">Send</button>
+            <button class="btn-main clue-target" style="width:100px; margin:0;" id="clue4">Send</button>
         </div>
     </div>
 </main>
@@ -168,7 +163,13 @@ window.onload = function() {
     firebase.initializeApp(firebaseConfig);
     const rdb = firebase.database();
     let currentUser = null;
-    let isFlashing = false;
+
+    const devSecrets = {
+        1: "I originally created a chat app just to see how creating chat apps work. Later, I named it yoohoo because saying yoohoo to get someone's attention sounds stupid",
+        2: "It used to be named Inner Circle and the color scheme was purple. I would send the link to internet scammers pretending it was an elite society of rich people. many scammers fell for it and when they joined they wasted their time trying to scam each other. it also let me see what kind of passwords scammers use...",
+        3: "(you probably need context for this one) after all those users flooded the chat, I took the site down, deleted all the data, and created yoohoo chat.",
+        4: "I thought of using it for a puzzle since Yoohoo chat was dead for a while and the site looked mysterious."
+    };
 
     // Login Logic (No Registering Allowed)
     document.getElementById('toggleBtn').onclick = () => {
@@ -194,8 +195,8 @@ window.onload = function() {
 
     function launchChat() {
         document.getElementById('headerInfo').innerText = `${currentUser.name} // ${currentUser.role}`;
-       
-        // Populate sidebar once (Read Only)
+        
+        // Populate sidebar (Clue 2)
         rdb.ref('users').once('value', (snap) => {
             const list = document.getElementById('userList');
             list.innerHTML = '';
@@ -204,49 +205,55 @@ window.onload = function() {
                 if(name === currentUser.name) return;
                 const u = c.val();
                 const div = document.createElement('div');
-                div.className = 'user-row clue-target'; // Turns cursor to question mark
+                div.className = 'user-row clue-target'; 
                 div.innerHTML = `<div style="font-size:0.85em;">${name} <small style="opacity:0.5;">(${u.role})</small></div>`;
-               
-                // Add clue trigger to ALL users in the sidebar
-                div.onclick = () => window.triggerClue("最终答案");
-               
+                
+                // Clicking any user shows Secret 2
+                div.onclick = () => window.showSecret(2);
                 list.appendChild(div);
             });
         });
 
-        // Inject Hardcoded Glitched Message
+        // Inject the 4 blurring messages (Clue 3 triggers from these)
         const container = document.getElementById('chatContainer');
         container.innerHTML = `
-            <div class="message msg-Admin glitched-bubble clue-target" onclick="window.triggerClue('TO YOUR ARG LAST YEAR')">
+            <div class="message msg-Admin clue-target blur-effect blur-1" onclick="window.showSecret(3)">
                 <div style="font-size:0.7em; opacity:0.5; margin-bottom:3px;">as2026</div>
-                <div class="msg-text glitched-text">S Y S T E M &nbsp; E R R O R</div>
+                <div class="msg-text">First, I should check the Yoohoo Folder I was given.</div>
+            </div>
+            <div class="message msg-Admin clue-target blur-effect blur-2" onclick="window.showSecret(3)">
+                <div style="font-size:0.7em; opacity:0.5; margin-bottom:3px;">as2026</div>
+                <div class="msg-text">There might be a clue in there.</div>
+            </div>
+            <div class="message msg-Admin clue-target blur-effect blur-3" onclick="window.showSecret(3)">
+                <div style="font-size:0.7em; opacity:0.5; margin-bottom:3px;">as2026</div>
+                <div class="msg-text">I should also check parts of the Yoohoo site and see if anything seems weird.</div>
+            </div>
+            <div class="message msg-Admin clue-target blur-effect blur-4" onclick="window.showSecret(3)">
+                <div style="font-size:0.7em; opacity:0.5; margin-bottom:3px;">as2026</div>
+                <div class="msg-text">"lthps tl 'sbjrf'" has been added to the Yoohoo section of your handbook.</div>
             </div>
         `;
     }
 
-    // CLUE FLASHING SYSTEM
-    window.triggerClue = function(phrase) {
-        if (isFlashing) return; // Prevent clicking while a clue is already showing
-        isFlashing = true;
-       
-        const overlay = document.getElementById('clueOverlay');
-        const textElement = document.getElementById('clueText');
-       
-        textElement.innerText = phrase;
-        overlay.style.display = 'flex';
-        overlay.style.animation = 'glitch-flash 5s forwards';
-
-        // Lock everything out for exactly 5 seconds
-        setTimeout(() => {
-            overlay.style.display = 'none';
-            overlay.style.animation = 'none'; // reset animation
-            isFlashing = false;
-        }, 5000);
+    // Modal Control Functions attached to window
+    window.showSecret = function(secretId) {
+        document.getElementById('secretText').innerText = devSecrets[secretId];
+        document.getElementById('secretOverlay').style.display = 'flex';
     };
 
-    // Clue Event Listeners
-    document.getElementById('yoohooLogo').onclick = () => window.triggerClue("01010111 01001000 01000001 01010100");
-    document.getElementById('sendMsgBtn').onclick = () => window.triggerClue("DHZ PA");
+    window.closeModal = function() {
+        document.getElementById('secretOverlay').style.display = 'none';
+    };
+
+    // Prevent clicks outside the modal from closing it if you only want the X to work
+    document.getElementById('secretOverlay').addEventListener('click', function(e) {
+        if(e.target === this) window.closeModal(); // Optional: allows clicking dark background to close
+    });
+
+    // Assign Clue Event Listeners
+    document.getElementById('clue1').onclick = () => window.showSecret(1);
+    document.getElementById('clue4').onclick = () => window.showSecret(4);
 };
 </script>
 </body>
