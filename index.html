@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YooHoo Chat | Secrets</title>
+    <title>Inner Circle | Private</title>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --primary: #008cff;
-            --primary-glow: rgba(0, 140, 255, 0.4);
-            --mod: #00ead3;
+            --primary: #a124ff; /* Deep glowing purple */
+            --primary-glow: rgba(161, 36, 255, 0.5);
+            --mod: #ff00aa; /* Magenta for Managers */
             --bg: #050505;
             --surface: #111;
             --text: #e0e0e0;
@@ -20,9 +20,10 @@
             margin: 0; font-family: 'Montserrat', sans-serif;
             background-color: var(--bg); color: var(--text);
             height: 100vh; overflow: hidden;
-            background-image: radial-gradient(circle at center, #001a33 0%, #050505 100%);
+            /* Changed gradient to a deep dark purple fading to black */
+            background-image: radial-gradient(circle at center, #1b0033 0%, #050505 100%);
         }
-        #authOverlay {
+        #authOverlay, #kickOverlay, #pollOverlay {
             position: fixed; inset: 0; background: rgba(0, 0, 0, 0.95);
             backdrop-filter: blur(15px); z-index: 1000;
             display: flex; justify-content: center; align-items: center;
@@ -41,8 +42,9 @@
         .btn-main {
             background: var(--primary); color: white; width: 100%; padding: 12px;
             margin-top: 10px; border: none; border-radius: 10px; font-weight: bold; cursor: pointer;
-            box-shadow: 0 0 15px var(--primary-glow);
+            box-shadow: 0 0 15px var(--primary-glow); transition: 0.2s;
         }
+        .btn-main:hover { filter: brightness(1.2); }
         header { height: 60px; background: rgba(17, 17, 17, 0.9); display: flex; justify-content: space-between; align-items: center; padding: 0 20px; border-bottom: 2px solid var(--primary); }
         main { display: flex; height: calc(100vh - 60px); }
         #sidebar { width: 300px; background: var(--sidebar-bg); border-right: 1px solid #222; padding: 15px; overflow-y: auto; }
@@ -50,81 +52,89 @@
         #chatContainer { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
         
         /* Message Bubbles */
-        .message { padding: 10px 15px; border-radius: 12px; max-width: 80%; font-size: 0.9em; line-height: 1.4; position: relative; }
-        .msg-Admin { background: #0a162b; align-self: flex-start; border-left: 3px solid var(--primary); }
+        .message { padding: 10px 15px; border-radius: 12px; max-width: 80%; font-size: 0.9em; line-height: 1.4; cursor: pointer; transition: 0.2s; position: relative; }
+        .message:hover { filter: brightness(1.2); }
+        .msg-Member { background: #1a1a1a; align-self: flex-start; border-left: 3px solid #555; }
+        .msg-Moderator { background: #260a1a; align-self: flex-start; border-left: 3px solid var(--mod); }
+        .msg-Admin { background: #180926; align-self: flex-start; border-left: 3px solid var(--primary); box-shadow: 0 0 10px rgba(161, 36, 255, 0.1); }
+        .msg-me { align-self: flex-end; background: var(--primary); color: white; border-left: none; }
         
+        /* Poll UI */
+        .poll-container { background: rgba(0,0,0,0.4); padding: 12px; border-radius: 8px; margin-top: 8px; border: 1px solid rgba(255,255,255,0.1); }
+        .poll-option { 
+            position: relative; display: block; width: 100%; padding: 10px; margin: 6px 0; 
+            background: #111; border: 1px solid #333; border-radius: 6px; cursor: pointer; 
+            text-align: left; color: white; overflow: hidden; transition: 0.2s;
+        }
+        .poll-option:hover { border-color: var(--primary); }
+        .poll-option.selected { border-color: var(--primary); background: #1a0a2b; }
+        .poll-result-bar { position: absolute; left: 0; top: 0; height: 100%; background: var(--primary-glow); z-index: 0; pointer-events: none; transition: width 0.4s ease; }
+        .poll-text-content { position: relative; z-index: 1; display: flex; justify-content: space-between; }
+
+        /* Reactions */
+        .reaction-drawer { 
+            display: none; gap: 12px; background: #111; padding: 8px 15px; 
+            border-radius: 30px; border: 1px solid var(--primary); position: absolute;
+            top: -45px; left: 0; z-index: 9999; box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+        }
+        .msg-me .reaction-drawer { left: auto; right: 0; }
+        .message.active-react .reaction-drawer { display: flex; }
+        .reaction { cursor: pointer; font-size: 1.2em; transition: 0.2s; filter: grayscale(0.2); }
+        .reaction:hover { transform: scale(1.4); filter: grayscale(0); }
+        .reaction-count-tag { font-size: 0.75em; background: rgba(255,255,255,0.08); padding: 2px 8px; border-radius: 12px; margin-right: 5px; display: inline-flex; align-items: center; gap: 3px; margin-top: 5px; border: 1px solid rgba(255,255,255,0.05); }
+
         /* User List */
-        .user-row { background: #1a1a1a; padding: 12px; border-radius: 10px; margin-bottom: 10px; border: 1px solid #333; transition: 0.3s; position: relative; }
+        .user-row { background: #121212; padding: 12px; border-radius: 10px; margin-bottom: 10px; border: 1px solid #222; cursor: pointer; transition: 0.3s; position: relative; }
+        .user-row:hover { border-color: var(--primary); }
+        .mod-btn { font-size: 0.6em; padding: 4px 8px; margin-right: 4px; border-radius: 4px; cursor: pointer; border: none; font-weight: bold; color: white; }
+        
+        .notif-glow { 
+            border-color: var(--primary) !important; 
+            box-shadow: 0 0 15px var(--primary-glow); 
+            animation: pulse 1.5s infinite; 
+        }
+        @keyframes pulse { 0% { opacity: 1; border-width: 1px; } 50% { opacity: 0.7; border-width: 2px; } 100% { opacity: 1; border-width: 1px; } }
+        
         #viewIndicator { font-size: 0.7em; color: var(--primary); letter-spacing: 2px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;}
-
-        /* PUZZLE SPECIFIC STYLES */
-        
-        /* Custom oversized question mark cursor encoded as SVG */
-        .clue-target {
-            cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="filter: drop-shadow(0px 0px 3px black);"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>') 20 20, help !important;
-        }
-
-        /* Periodic Blur Animation for Messages */
-        .blur-effect {
-            animation: periodic-blur 7s infinite;
-        }
-        
-        /* Staggered animations so they don't all blur at the same time */
-        .blur-1 { animation-delay: 0s; }
-        .blur-2 { animation-delay: 2s; }
-        .blur-3 { animation-delay: 4s; }
-        .blur-4 { animation-delay: 6s; }
-
-        @keyframes periodic-blur {
-            0%, 85%, 100% { filter: blur(0px); }
-            92% { filter: blur(3.5px); }
-        }
-        
-        /* Modal Popup Styles */
-        #secretOverlay {
-            position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(5px);
-            z-index: 9999; display: none; justify-content: center; align-items: center;
-        }
-        
-        .secret-modal {
-            background: #1a1a1a; border: 1px solid #555; border-radius: 12px;
-            padding: 30px; width: 450px; max-width: 90%; color: white;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.8); position: relative;
-            font-size: 1.05em; line-height: 1.6; text-align: left;
-        }
-
-        .close-btn {
-            position: absolute; top: 10px; right: 15px; font-size: 1.5em;
-            color: #aaa; cursor: pointer; background: none; border: none; padding: 0;
-            transition: color 0.2s;
-        }
-        
-        .close-btn:hover { color: white; }
-
     </style>
 </head>
 <body>
 
-<!-- The Secret Popup Modal -->
-<div id="secretOverlay">
-    <div class="secret-modal">
-        <button class="close-btn" onclick="window.closeModal()">&times;</button>
-        <div id="secretText"></div>
-    </div>
-</div>
-
 <div id="authOverlay">
     <div class="card">
         <h1 id="authTitle">Login</h1>
-        <input type="text" id="userIn" placeholder="Username">
-        <input type="password" id="passIn" placeholder="Password">
+        <input type="text" id="userIn" placeholder="Moniker">
+        <input type="password" id="passIn" placeholder="Entrance Key">
         <button id="mainAuthBtn" class="btn-main">Login</button>
-        <button id="toggleBtn" style="background:none; border:none; color:var(--primary); cursor:pointer; margin-top:10px; font-size:0.8em; text-decoration:underline;">Registration Locked</button>
+        <button id="toggleBtn" style="background:none; border:none; color:var(--primary); cursor:pointer; margin-top:10px; font-size:0.8em; text-decoration:underline;">Need an account? Register</button>
+    </div>
+</div>
+
+<div id="kickOverlay" style="display:none;">
+    <div class="card">
+        <h2 style="color:#ff4d4d;">Access Denied</h2>
+        <p>Your account is currently suspended.</p>
+        <button id="rejoinBtn" class="btn-main" onclick="requestRejoin()">Request Reactivation</button>
+        <p id="requestStatus" style="font-size:0.8em; color:gray; margin-top:10px;"></p>
+    </div>
+</div>
+
+<!-- Poll Creation Overlay (Admin Only) -->
+<div id="pollOverlay" style="display:none;">
+    <div class="card">
+        <h2 style="font-size: 1.2em; margin-bottom: 20px;">Create Global Poll</h2>
+        <input type="text" id="pollQuestion" placeholder="Poll Question...">
+        <input type="text" id="pollOpt1" placeholder="Option 1 (Required)">
+        <input type="text" id="pollOpt2" placeholder="Option 2 (Required)">
+        <input type="text" id="pollOpt3" placeholder="Option 3 (Optional)">
+        <input type="text" id="pollOpt4" placeholder="Option 4 (Optional)">
+        <button class="btn-main" onclick="sendPoll()">Post Poll</button>
+        <button style="background:none; border:none; color:gray; cursor:pointer; margin-top:15px;" onclick="document.getElementById('pollOverlay').style.display='none'">Cancel</button>
     </div>
 </div>
 
 <header>
-    <h2 id="clue1" class="clue-target" style="cursor: pointer;">YOOHOO</h2>
+    <h2 onclick="location.reload()" style="cursor:pointer">INNER CIRCLE</h2>
     <div id="headerInfo" style="font-size:0.8em; opacity:0.8; color: var(--mod);"></div>
     <button onclick="location.reload()" style="background:none; color:#ff4d4d; border:1px solid #ff4d4d; padding:5px 10px; border-radius:5px; cursor:pointer;">Logout</button>
 </header>
@@ -133,14 +143,16 @@
     <div id="sidebar">
         <div id="viewIndicator">
             <span>ONLINE USERS</span>
+            <button id="backToGlobal" style="display:none; background:var(--primary); border:none; color:white; font-size:10px; padding:2px 5px; cursor:pointer; border-radius:3px;" onclick="loadGlobalChat()">BACK TO GLOBAL</button>
         </div>
         <div id="userList"></div>
     </div>
     <div id="chatArea">
         <div id="chatContainer"></div>
         <div id="inputArea" style="padding:20px; background:#0f0f0f; display:flex; gap:10px; border-top:1px solid #222;">
-            <input type="text" id="messageInput" placeholder="Message everyone..." autocomplete="off" style="margin:0; cursor: not-allowed;" disabled>
-            <button class="btn-main clue-target" style="width:100px; margin:0;" id="clue4">Send</button>
+            <input type="text" id="messageInput" placeholder="Message..." autocomplete="off" style="margin:0;">
+            <button id="pollBtn" class="btn-main" style="width:50px; margin:0; display:none;" title="Create Poll" onclick="document.getElementById('pollOverlay').style.display='flex'">📊</button>
+            <button class="btn-main" style="width:100px; margin:0;" id="sendMsgBtn">Send</button>
         </div>
     </div>
 </main>
@@ -163,17 +175,24 @@ window.onload = function() {
     firebase.initializeApp(firebaseConfig);
     const rdb = firebase.database();
     let currentUser = null;
+    let isRegisterMode = false;
+    let activeDMTarget = null;
+    let currentChatRef = null;
 
-    const devSecrets = {
-        1: "I originally created a chat app just to see how creating chat apps work. Later, I named it yoohoo because saying yoohoo to get someone's attention sounds stupid",
-        2: "It used to be named Inner Circle and the color scheme was purple. I would send the link to internet scammers pretending it was an elite society of rich people. many scammers fell for it and when they joined they wasted their time trying to scam each other. it also let me see what kind of passwords scammers use...",
-        3: "(you probably need context for this one) after all those users flooded the chat, I took the site down, deleted all the data, and created yoohoo chat.",
-        4: "I thought of using it for a puzzle since Yoohoo chat was dead for a while and the site looked mysterious."
+    // Helper to map backend roles to front-end UI text
+    const getRoleName = (role) => {
+        if(role === 'Admin') return 'Overseer';
+        if(role === 'Moderator') return 'Manager';
+        return 'Guest';
     };
 
-    // Login Logic (No Registering Allowed)
+    const getCrown = (role) => role === 'Admin' ? ' 👑' : '';
+
     document.getElementById('toggleBtn').onclick = () => {
-        alert("System Error: New account registration is locked.");
+        isRegisterMode = !isRegisterMode;
+        document.getElementById('authTitle').innerText = isRegisterMode ? "Register" : "Login";
+        document.getElementById('mainAuthBtn').innerText = isRegisterMode ? "Sign Up" : "Login";
+        document.getElementById('toggleBtn').innerText = isRegisterMode ? "Already have an account? Login" : "Need an account? Register";
     };
 
     document.getElementById('mainAuthBtn').onclick = () => {
@@ -183,21 +202,39 @@ window.onload = function() {
 
         rdb.ref('users/' + u).once('value', (snap) => {
             const data = snap.val();
-            if(data && data.pass === p) {
-                currentUser = { name: u, ...data };
-                document.getElementById('authOverlay').style.display = 'none';
-                launchChat();
+            if(isRegisterMode) {
+                if(data) return alert("Moniker already taken.");
+                rdb.ref('users/' + u).set({ pass: p, role: "Member", status: "Active", muteUntil: 0, rejoinPending: false });
+                alert("Registered successfully. Please login.");
+                document.getElementById('toggleBtn').click();
             } else {
-                alert("Access denied. Invalid credentials.");
+                if(data && data.pass === p) {
+                    if(data.status === 'Banned') return alert("This account has been permanently banned.");
+                    currentUser = { name: u, ...data };
+                    if(data.status === 'Kicked') {
+                        document.getElementById('authOverlay').style.display = 'none';
+                        document.getElementById('kickOverlay').style.display = 'flex';
+                        return;
+                    }
+                    document.getElementById('authOverlay').style.display = 'none';
+                    launchChat();
+                } else alert("Access denied.");
             }
         });
     };
 
     function launchChat() {
-        document.getElementById('headerInfo').innerText = `${currentUser.name} // ${currentUser.role}`;
-        
-        // Populate sidebar (Clue 2)
-        rdb.ref('users').once('value', (snap) => {
+        document.getElementById('headerInfo').innerText = `${currentUser.name}${getCrown(currentUser.role)} // ${getRoleName(currentUser.role)}`;
+        loadGlobalChat();
+        listenForNotifications();
+
+        // Admin/Mod monitoring
+        rdb.ref('users/' + currentUser.name + '/status').on('value', (s) => {
+            if(s.val() === 'Kicked' || s.val() === 'Banned') location.reload();
+        });
+
+        // User List Sidebar
+        rdb.ref('users').on('value', (snap) => {
             const list = document.getElementById('userList');
             list.innerHTML = '';
             snap.forEach(c => {
@@ -205,56 +242,231 @@ window.onload = function() {
                 if(name === currentUser.name) return;
                 const u = c.val();
                 const div = document.createElement('div');
-                div.className = 'user-row clue-target'; 
-                div.innerHTML = `<div style="font-size:0.85em;">${name} <small style="opacity:0.5;">(${u.role})</small></div>`;
-                
-                // Clicking any user shows Secret 2
-                div.onclick = () => window.showSecret(2);
+                div.className = 'user-row';
+                div.id = 'user-row-' + name;
+                div.innerHTML = `<div style="font-size:0.85em;">${name}${getCrown(u.role)} <small style="opacity:0.5;">(${getRoleName(u.role)})</small></div>`;
+                div.onclick = () => { 
+                    div.classList.remove('notif-glow'); 
+                    openDM(name); 
+                };
+
+                const canAct = (currentUser.role === 'Admin') || (currentUser.role === 'Moderator' && u.role !== 'Admin');
+                if(currentUser.role !== 'Member' && canAct) {
+                    const tools = document.createElement('div');
+                    tools.style.marginTop = "8px";
+                    let btnHTML = `<button class="mod-btn" style="background:#daa520" onclick="event.stopPropagation(); mod('mute','${name}')">Mute</button>
+                                   <button class="mod-btn" style="background:#ff4500" onclick="event.stopPropagation(); mod('kick','${name}')">Kick</button>`;
+                    if(currentUser.role === 'Admin') {
+                        btnHTML += `<button class="mod-btn" style="background:#8b0000" onclick="event.stopPropagation(); mod('ban','${name}')">Ban</button>`;
+                        if (u.role === 'Moderator') btnHTML += `<button class="mod-btn" style="background:#444" onclick="event.stopPropagation(); mod('demote','${name}')">Demote</button>`;
+                        else if (u.role === 'Member') btnHTML += `<button class="mod-btn" style="background:var(--mod); color:#000;" onclick="event.stopPropagation(); mod('promote','${name}')">Mod</button>`;
+                    }
+                    if(u.rejoinPending) btnHTML += `<button class="mod-btn" style="background:green; width:100%; margin-top:5px;" onclick="event.stopPropagation(); mod('approve','${name}')">Approve</button>`;
+                    tools.innerHTML = btnHTML;
+                    div.appendChild(tools);
+                }
                 list.appendChild(div);
             });
         });
-
-        // Inject the 4 blurring messages (Clue 3 triggers from these)
-        const container = document.getElementById('chatContainer');
-        container.innerHTML = `
-            <div class="message msg-Admin clue-target blur-effect blur-1" onclick="window.showSecret(3)">
-                <div style="font-size:0.7em; opacity:0.5; margin-bottom:3px;">as2026</div>
-                <div class="msg-text">First, I should check the Yoohoo Folder I was given.</div>
-            </div>
-            <div class="message msg-Admin clue-target blur-effect blur-2" onclick="window.showSecret(3)">
-                <div style="font-size:0.7em; opacity:0.5; margin-bottom:3px;">as2026</div>
-                <div class="msg-text">There might be a clue in there.</div>
-            </div>
-            <div class="message msg-Admin clue-target blur-effect blur-3" onclick="window.showSecret(3)">
-                <div style="font-size:0.7em; opacity:0.5; margin-bottom:3px;">as2026</div>
-                <div class="msg-text">I should also check parts of the Yoohoo site and see if anything seems weird.</div>
-            </div>
-            <div class="message msg-Admin clue-target blur-effect blur-4" onclick="window.showSecret(3)">
-                <div style="font-size:0.7em; opacity:0.5; margin-bottom:3px;">as2026</div>
-                <div class="msg-text">"lthps tl 'sbjrf'" has been added to the Yoohoo section of your handbook.</div>
-            </div>
-        `;
     }
 
-    // Modal Control Functions attached to window
-    window.showSecret = function(secretId) {
-        document.getElementById('secretText').innerText = devSecrets[secretId];
-        document.getElementById('secretOverlay').style.display = 'flex';
+    window.loadGlobalChat = function() {
+        activeDMTarget = null;
+        document.getElementById('backToGlobal').style.display = 'none';
+        document.getElementById('messageInput').placeholder = "Message everyone...";
+        
+        // Show Poll button only for Admins in Global Chat
+        if(currentUser.role === 'Admin') document.getElementById('pollBtn').style.display = 'block';
+
+        if(currentChatRef) currentChatRef.off();
+        currentChatRef = rdb.ref('messages').limitToLast(50);
+        currentChatRef.on('value', renderMessages);
+    }
+
+    window.openDM = function(target) {
+        activeDMTarget = target;
+        document.getElementById('backToGlobal').style.display = 'block';
+        document.getElementById('messageInput').placeholder = `Messaging ${target}...`;
+        
+        // Hide Poll button in DMs
+        document.getElementById('pollBtn').style.display = 'none';
+
+        const roomID = [currentUser.name, target].sort().join('_');
+        if(currentChatRef) currentChatRef.off();
+        
+        currentChatRef = rdb.ref('dms/' + roomID).limitToLast(50);
+        currentChatRef.on('value', renderMessages);
+    }
+
+    function renderMessages(snap) {
+        const container = document.getElementById('chatContainer');
+        container.innerHTML = '';
+        snap.forEach(c => {
+            const m = c.val();
+            const msgId = c.key;
+            const div = document.createElement('div');
+            div.className = `message msg-${m.role || 'Member'} ${m.sender === currentUser.name ? 'msg-me' : ''}`;
+            
+            // Reaction Logic
+            let tagsHTML = '<div class="tags-container">';
+            const emotes = { up: '👍', cry: '😢', lol: '😂', heart: '❤️', pray: '🙏' };
+            for (let key in emotes) {
+                let count = (m.reactions && m.reactions[key]) ? Object.keys(m.reactions[key]).length : 0;
+                if(count > 0) tagsHTML += `<span class="reaction-count-tag">${emotes[key]} ${count}</span>`;
+            }
+            tagsHTML += '</div>';
+
+            let drawerHTML = `<div class="reaction-drawer">`;
+            for (let [key, emoji] of Object.entries(emotes)) {
+                drawerHTML += `<span class="reaction" onclick="event.stopPropagation(); toggleReact('${msgId}', '${key}')">${emoji}</span>`;
+            }
+            drawerHTML += `</div>`;
+
+            // Content Logic (Text vs Poll)
+            let mainContent = `<div class="msg-text">${m.text || ''}</div>`;
+            
+            if (m.type === 'poll') {
+                const votesObj = m.votes || {};
+                const totalVotes = Object.keys(votesObj).length;
+                const userVote = votesObj[currentUser.name];
+                
+                let pollHTML = `<div class="poll-container"><strong style="color:var(--primary); font-size:1.1em;">📊 ${m.question}</strong><div style="margin-top:10px;">`;
+                
+                m.options.forEach((opt, idx) => {
+                    const voteCount = Object.values(votesObj).filter(v => v === idx).length;
+                    const percent = totalVotes === 0 ? 0 : Math.round((voteCount / totalVotes) * 100);
+                    const isSelected = (userVote === idx);
+                    
+                    if (userVote !== undefined) {
+                        // User has voted -> show results, can click to change
+                        pollHTML += `
+                        <div class="poll-option ${isSelected ? 'selected' : ''}" onclick="event.stopPropagation(); submitVote('${msgId}', ${idx})">
+                            <div class="poll-result-bar" style="width: ${percent}%"></div>
+                            <div class="poll-text-content">
+                                <span>${opt}</span>
+                                <span style="opacity:0.8; font-size:0.9em;">${voteCount} (${percent}%)</span>
+                            </div>
+                        </div>`;
+                    } else {
+                        // User hasn't voted yet -> pure buttons
+                        pollHTML += `
+                        <div class="poll-option" onclick="event.stopPropagation(); submitVote('${msgId}', ${idx})">
+                            <div class="poll-text-content"><span>${opt}</span></div>
+                        </div>`;
+                    }
+                });
+                pollHTML += `</div></div>`;
+                mainContent = pollHTML;
+            }
+
+            div.innerHTML = `<div style="font-size:0.7em; opacity:0.5; margin-bottom:3px;">${m.sender}${getCrown(m.role)}</div>
+                             ${mainContent}${tagsHTML}${drawerHTML}`;
+            
+            div.onclick = () => {
+                const wasActive = div.classList.contains('active-react');
+                document.querySelectorAll('.message').forEach(el => el.classList.remove('active-react'));
+                if(!wasActive) div.classList.add('active-react');
+            };
+            container.appendChild(div);
+        });
+        container.scrollTop = container.scrollHeight;
+    }
+
+    function listenForNotifications() {
+        rdb.ref('dms').on('child_added', (snapshot) => {
+            const roomID = snapshot.key;
+            if (roomID.includes(currentUser.name)) {
+                rdb.ref('dms/' + roomID).limitToLast(1).on('child_added', (msgSnap) => {
+                    const msg = msgSnap.val();
+                    if (msg.sender !== currentUser.name && activeDMTarget !== msg.sender) {
+                        const row = document.getElementById('user-row-' + msg.sender);
+                        if (row) row.classList.add('notif-glow');
+                    }
+                });
+            }
+        });
+    }
+
+    document.getElementById('sendMsgBtn').onclick = () => {
+        const text = document.getElementById('messageInput').value.trim();
+        if(!text) return;
+        
+        rdb.ref('users/' + currentUser.name).once('value', (snap) => {
+            if(snap.val().muteUntil > Date.now()) return alert("Your account is muted.");
+            
+            if(activeDMTarget) {
+                const roomID = [currentUser.name, activeDMTarget].sort().join('_');
+                rdb.ref('dms/' + roomID).push({ sender: currentUser.name, role: currentUser.role, text: text, time: Date.now() });
+            } else {
+                rdb.ref('messages').push({ sender: currentUser.name, role: currentUser.role, text: text, time: Date.now() });
+            }
+            document.getElementById('messageInput').value = '';
+        });
     };
 
-    window.closeModal = function() {
-        document.getElementById('secretOverlay').style.display = 'none';
+    // Poll Logic 
+    window.sendPoll = () => {
+        const q = document.getElementById('pollQuestion').value.trim();
+        const opts = [
+            document.getElementById('pollOpt1').value.trim(),
+            document.getElementById('pollOpt2').value.trim(),
+            document.getElementById('pollOpt3').value.trim(),
+            document.getElementById('pollOpt4').value.trim()
+        ].filter(o => o !== '');
+
+        if(!q || opts.length < 2) return alert("Please provide a question and at least 2 options.");
+
+        rdb.ref('messages').push({
+            type: 'poll',
+            sender: currentUser.name,
+            role: currentUser.role,
+            question: q,
+            options: opts,
+            time: Date.now()
+        });
+
+        // Clear and close
+        document.getElementById('pollQuestion').value = '';
+        document.getElementById('pollOpt1').value = '';
+        document.getElementById('pollOpt2').value = '';
+        document.getElementById('pollOpt3').value = '';
+        document.getElementById('pollOpt4').value = '';
+        document.getElementById('pollOverlay').style.display = 'none';
     };
 
-    // Prevent clicks outside the modal from closing it if you only want the X to work
-    document.getElementById('secretOverlay').addEventListener('click', function(e) {
-        if(e.target === this) window.closeModal(); // Optional: allows clicking dark background to close
-    });
+    window.submitVote = (msgId, optIdx) => {
+        if(activeDMTarget) return; // Only in global chat
+        rdb.ref(`messages/${msgId}/votes/${currentUser.name}`).set(optIdx);
+    };
 
-    // Assign Clue Event Listeners
-    document.getElementById('clue1').onclick = () => window.showSecret(1);
-    document.getElementById('clue4').onclick = () => window.showSecret(4);
+    window.toggleReact = (msgId, type) => {
+        const path = activeDMTarget ? `dms/${[currentUser.name, activeDMTarget].sort().join('_')}/${msgId}` : `messages/${msgId}`;
+        const ref = rdb.ref(`${path}/reactions/${type}/${currentUser.name}`);
+        ref.once('value', (snap) => {
+            if(snap.exists()) ref.remove();
+            else ref.set(true);
+        });
+    };
+
+    window.mod = (type, target) => {
+        const ref = rdb.ref('users/' + target);
+        if(type === 'mute') ref.update({ muteUntil: Date.now() + 600000 });
+        if(type === 'kick') ref.update({ status: 'Kicked', rejoinPending: false });
+        if(type === 'ban') ref.update({ status: 'Banned' });
+        if(type === 'promote') ref.update({ role: 'Moderator' });
+        if(type === 'demote') ref.update({ role: 'Member' });
+        if(type === 'approve') ref.update({ status: 'Active', rejoinPending: false });
+    }
+
+    document.getElementById('messageInput').addEventListener('keypress', e => { if(e.key === 'Enter') document.getElementById('sendMsgBtn').click(); });
 };
+
+function requestRejoin() {
+    const u = document.getElementById('userIn').value.trim();
+    firebase.database().ref('users/' + u).update({ rejoinPending: true });
+    document.getElementById('rejoinBtn').disabled = true;
+    document.getElementById('requestStatus').innerText = "Signal sent to staff.";
+}
 </script>
 </body>
 </html>
