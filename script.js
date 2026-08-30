@@ -16,11 +16,21 @@ window.onload = function() {
     let activeDMTarget = null;
     let currentChatRef = null;
 
+    // Simulation Data Tracking
+    let spamCount = 0;
+    let pastMessages = [];
+    let displayAngle = 0;
+    let wholesomeMessageRefs = [];
+
     const escapeHTML = (str) => {
         return (str || '').replace(/[&<>'"]/g, tag => ({
             '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
         }[tag]));
     };
+
+    const handleAuthEnter = (e) => { if (e.key === 'Enter') document.getElementById('mainAuthBtn').click(); };
+    document.getElementById('userIn').addEventListener('keypress', handleAuthEnter);
+    document.getElementById('passIn').addEventListener('keypress', handleAuthEnter);
 
     document.getElementById('toggleBtn').onclick = () => {
         isRegisterMode = !isRegisterMode;
@@ -205,7 +215,7 @@ window.onload = function() {
     }
 
     document.getElementById('sendMsgBtn').onclick = () => {
-        const text = document.getElementById('messageInput').value.trim();
+        let text = document.getElementById('messageInput').value.trim();
         if(!text) return;
 
         if (activeDMTarget === 'YooBot') {
@@ -239,21 +249,104 @@ window.onload = function() {
         const isSpam = /(.)\1{5,}/.test(text) || /[bcdfghjklmnpqrstvwxyz]{7,}/i.test(text.replace(/\s/g, ''));
         
         if (isSpam) {
-            rdb.ref('messages').push({ sender: 'YooBot', role: 'Bot', text: 'Spamming is against Yoohoo regulations.' });
+            spamCount++;
+            let yoobotResponse = "";
+            
+            if (spamCount === 2) yoobotResponse = "Spamming is against Yoohoo regulations apparently.";
+            else if (spamCount === 3) yoobotResponse = "Another message...";
+            else if (spamCount === 6) yoobotResponse = "Nobody is reading this...";
+            else if (spamCount === 10) yoobotResponse = "You should stop. Looking at spam messages is tiring.";
+            else if (spamCount > 10 && pastMessages.length > 0) {
+                const randMsg = pastMessages[Math.floor(Math.random() * pastMessages.length)];
+                yoobotResponse = `You said "${randMsg}" earlier. What could you possibly mean by that?`;
+            }
+
+            if (yoobotResponse) rdb.ref('messages').push({ sender: 'YooBot', role: 'Bot', text: yoobotResponse });
+
+            if (wholesomeMessageRefs.length > 0) {
+                const idx = Math.floor(Math.random() * wholesomeMessageRefs.length);
+                const targetRef = wholesomeMessageRefs[idx];
+                rdb.ref(targetRef).update({ text: "Yes, let's create a warped environment!" });
+                wholesomeMessageRefs.splice(idx, 1);
+            }
+
+            const angleChance = spamCount > 10 ? 0.5 : 0.25;
+            if (Math.random() < angleChance) {
+                displayAngle += 1;
+                document.body.style.transform = `rotate(${displayAngle}deg)`;
+            }
+            if (spamCount >= 20) {
+                document.body.style.transition = "filter 0.5s";
+                document.body.style.filter = "blur(10px)";
+                setTimeout(() => { document.body.style.filter = "none"; }, 3000);
+            }
+
             document.getElementById('messageInput').value = '';
-            return alert("Warning: Message intercepted by spam filter.");
+            return; 
         }
+
+        pastMessages.push(text);
+        
+        let triggeredVoid = false;
+        if (Math.random() < 0.1) {
+            const creepy = ["I'm talking into a void.", "Yoohoo Chat V3: k!11*ng h@rm0n|/", "Is chatting proof that I exist?"];
+            text = creepy[Math.floor(Math.random() * creepy.length)];
+            triggeredVoid = true;
+        }
+
+        const badWords = ['fuck', 'shit', 'bitch', 'ass']; 
+        const hasCurse = badWords.some(w => text.toLowerCase().includes(w));
 
         rdb.ref('users/' + currentUser.name).once('value', (snap) => {
             if(snap.val().muteUntil > Date.now()) return alert("Your account is muted.");
             
-            if(activeDMTarget) {
-                const roomID = [currentUser.name, activeDMTarget].sort().join('_');
-                rdb.ref('dms/' + roomID).push({ sender: currentUser.name, text: text, time: Date.now() });
-            } else {
-                rdb.ref('messages').push({ sender: currentUser.name, role: currentUser.role, text: text });
+            let path = activeDMTarget ? 'dms/' + [currentUser.name, activeDMTarget].sort().join('_') : 'messages';
+            const newMsgRef = rdb.ref(path).push({ sender: currentUser.name, role: currentUser.role, text: text, time: Date.now() });
+            const msgId = newMsgRef.key;
+
+            if (hasCurse) {
+                let fakeReacts = {};
+                for(let i=0; i<100; i++) fakeReacts[`ghost_${i}`] = true;
+                rdb.ref(`${path}/${msgId}/reactions/cry`).set(fakeReacts);
+                rdb.ref(path).push({ sender: 'YooBot', role: 'Bot', text: "What a shame..." });
             }
+
+            if (Math.random() < 0.3) {
+                const emotes = ['up', 'cry', 'lol', 'heart', 'pray'];
+                const randEmote = emotes[Math.floor(Math.random() * emotes.length)];
+                rdb.ref(`${path}/${msgId}/reactions/${randEmote}/YooBot`).set(true);
+            }
+
+            if (Math.random() < 0.2 && !hasCurse && !triggeredVoid) {
+                const botMsgRef = rdb.ref(path).push({ sender: 'YooBot', role: 'Bot', text: "Yes, let's create a wholesome environment!" });
+                wholesomeMessageRefs.push(`${path}/${botMsgRef.key}`);
+            }
+
             document.getElementById('messageInput').value = '';
+
+            if (triggeredVoid) {
+                const elements = ['sidebar', 'headerInfo', 'inputArea', 'chatContainer'];
+                elements.forEach(id => document.getElementById(id).classList.add('glitch-flicker'));
+                
+                setTimeout(() => { document.getElementById('sidebar').style.opacity = '0'; }, 1500);
+                setTimeout(() => { document.getElementById('headerInfo').style.opacity = '0'; }, 2500);
+                setTimeout(() => { document.getElementById('inputArea').style.opacity = '0'; }, 3500);
+                setTimeout(() => { 
+                    document.body.style.background = 'black'; 
+                    document.getElementById('chatContainer').style.opacity = '0'; 
+                }, 5000);
+                
+                setTimeout(() => {
+                    document.body.style.background = 'var(--bg)';
+                    document.body.style.transform = 'none';
+                    displayAngle = 0;
+                    elements.forEach(id => {
+                        const el = document.getElementById(id);
+                        el.classList.remove('glitch-flicker');
+                        el.style.opacity = '1';
+                    });
+                }, 8000);
+            }
         });
     };
 
