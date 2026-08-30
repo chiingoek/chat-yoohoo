@@ -17,6 +17,7 @@ body {
     color: var(--text);
     height: 100vh;
     overflow: hidden;
+    transition: transform 0.2s, background 2s;
 }
 
 #authOverlay, #kickOverlay {
@@ -91,6 +92,7 @@ header {
     align-items: center;
     padding: 0 20px;
     border-bottom: 1px solid #222;
+    transition: opacity 2s;
 }
 
 header h2 {
@@ -101,6 +103,7 @@ header h2 {
     font-size: 0.8em;
     opacity: 0.8;
     color: var(--mod);
+    transition: opacity 1s;
 }
 
 #logoutBtn {
@@ -123,6 +126,7 @@ main {
     border-right: 1px solid #111;
     padding: 15px;
     overflow-y: auto;
+    transition: opacity 1s;
 }
 
 #chatArea {
@@ -139,6 +143,7 @@ main {
     display: flex;
     flex-direction: column;
     gap: 15px;
+    transition: opacity 1.5s;
 }
 
 .message {
@@ -303,6 +308,7 @@ main {
     display: flex;
     gap: 10px;
     border-top: 1px solid #111;
+    transition: opacity 1.5s;
 }
 
 #messageInput {
@@ -328,4 +334,18 @@ main {
     font-size: 0.8em;
     color: gray;
     margin-top: 10px;
+}
+
+/* Glitch Animation for the Void Anomaly */
+.glitch-flicker {
+    animation: glitch 0.15s infinite;
+}
+
+@keyframes glitch {
+    0% { opacity: 1; transform: translate(0); }
+    20% { opacity: 0.8; transform: translate(-2px, 1px); }
+    40% { opacity: 0.4; transform: translate(2px, -1px); }
+    60% { opacity: 0.9; transform: translate(-1px, 2px); }
+    80% { opacity: 0.3; transform: translate(1px, -2px); }
+    100% { opacity: 1; transform: translate(0); }
 }
